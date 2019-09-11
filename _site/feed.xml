@@ -5,8 +5,8 @@
     <description>I'm the only one of me.</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 11 Sep 2019 13:59:09 +0800</pubDate>
-    <lastBuildDate>Wed, 11 Sep 2019 13:59:09 +0800</lastBuildDate>
+    <pubDate>Wed, 11 Sep 2019 15:03:26 +0800</pubDate>
+    <lastBuildDate>Wed, 11 Sep 2019 15:03:26 +0800</lastBuildDate>
     <generator>Jekyll v4.0.0</generator>
     
       <item>
@@ -43,7 +43,51 @@
         
         <category>云计算</category>
         
-        <category>数据仓库</category>
+        
+      </item>
+    
+      <item>
+        <title>zookeeper-分布式应用协调服务</title>
+        <description>&lt;h3 id=&quot;zookeeper是什么&quot;&gt;Zookeeper是什么？&lt;/h3&gt;
+&lt;p&gt;        引用官方的说法：“Zookeeper是一个高性能，分布式的，开源分布式应用协调服务。它提供了简单原始的功能，分布式应用可以基于它实现更高级 的服务，比如同步，配置管理，集群管理，名空间。它被设计为易于编程，使用文件系统目录树作为数据模型。服务端跑在java上，提供java和C的客户端 API”。&lt;/p&gt;
+&lt;h3 id=&quot;zookeeper总体结构&quot;&gt;Zookeeper总体结构&lt;/h3&gt;
+&lt;p&gt;        Zookeeper服务自身组成一个集群(2n+1个服务允许n个失效)。Zookeeper服务有两个角色，一个是leader，负责写服务和数据同步，剩下的是follower，提供读服务，leader失效后会在follower中重新选举新的leader。&lt;/p&gt;
+
+&lt;p&gt;Zookeeper逻辑图如下，
+&lt;img src=&quot;/img/Zookeeper逻辑图.jpg&quot; alt=&quot;Zookeeper逻辑图.jpg&quot; title=&quot;Zookeeper逻辑图.jpg&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;1.客户端可以连接到每个server，每个server的数据完全相同。
+2.每个follower都和leader有连接，接受leader的数据更新操作。
+3.Server记录事务日志和快照到持久存储。
+4.大多数server可用，整体服务就可用。&lt;/p&gt;
+
+&lt;h3 id=&quot;zookeeper数据模型&quot;&gt;Zookeeper数据模型&lt;/h3&gt;
+&lt;p&gt;        Zookeeper表现为一个分层的文件系统目录树结构（不同于文件系统的是，节点可以有自己的数据，而文件系统中的目录节点只有子节点）。
+数据模型结构图如下，
+&lt;img src=&quot;/img/zookeeper数据模型结构.png&quot; alt=&quot;数据模型结构图.png&quot; title=&quot;数据模型结构图.png&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;区别关系&quot;&gt;区别&amp;amp;关系&lt;/h3&gt;
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;数据库和数据仓库都是数据的一种存储方式，大数据处理更多的是一种需求(问题)，而云计算是一种比较综合的需求(问题)解决方案。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;由于云计算本身的特性，天生就面临大数据处理(存储、计算等)问题，因为云计算的基本架构模式是C/S模式，其中S相对集中，而C是广泛分布。所有用户的数据和绝大部分的计算都是在S端完成的（数据量大，计算量大），加上用户也天然具有多样性（地域，文化，需求，个性化等），因此需求（也包括计算量）就非常大。&lt;/li&gt;
+  &lt;li&gt;云计算当然会涉及到数据的存储技术，但数据库技术对于云计算来说要视具体的情况来分析：
+  A)对于IaaS而言，数据库技术不是必需的，也不是必备的功能；
+  B)对于PaaS来说，数据库功能应该是必备的功能
+  C)对于SaaS而言，必然会用到数据库技术（包括传统关系数据库和NoSQL数据库）。
+而对于数据仓库技术，并不是云计算所必需的，但由于云数据的信息价值极大，类似一座金矿，我想云服务商是不可能放过从这些金矿中提取金子的.&lt;/li&gt;
+  &lt;li&gt;大数据首先所面临的问题就是大数据的存储问题，一般都会综合运用各种存储技术（文件存储，数据库存储），当然，你完全用文件存储或者数据库存储来解决，也是没问题的。与云计算类似，数据仓库技术不是必需的，但对于数据仓库技术对于结构化数据进行淘金还是非常有用的，当然，你不用数据仓库技术也可以，比如Hadoop模式。
+        在云计算和大数据处理中，最基础的技术其实是分布式计算技术。而对于构建分布式计算而言，多线程，同步，远程调用(RPC,RMI等)，进程管理与通信是其基本技术点。分布式计算编程是一种综合性应用编程，不仅需要有基本的技术点，还需要一定的组织管理知识。
+        就目前来说，云计算和大数据处理其实都没有形成一个统一的标准和定义，以上仅仅是我在工作和学习的过程中，对于这些东西的理解，也希望与大家一起来探讨这类问题。当然，也希望我的回复对你们有所帮助。&lt;/li&gt;
+&lt;/ol&gt;
+
+</description>
+        <pubDate>Mon, 09 Sep 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2019/09/09/zookeeper-%E5%88%86%E5%B8%83%E5%BC%8F%E5%BA%94%E7%94%A8%E5%8D%8F%E8%B0%83%E6%9C%8D%E5%8A%A1/</link>
+        <guid isPermaLink="true">http://localhost:4000/2019/09/09/zookeeper-%E5%88%86%E5%B8%83%E5%BC%8F%E5%BA%94%E7%94%A8%E5%8D%8F%E8%B0%83%E6%9C%8D%E5%8A%A1/</guid>
+        
+        <category>大数据</category>
         
         
       </item>
