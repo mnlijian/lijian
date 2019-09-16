@@ -35,10 +35,10 @@ HDFS 的设计便于从一个平台移植到另一个平台。 这有助于广�
 ### 三、NameNode & DataNodes
 NameNode 与 DataNode 是 HDFS 系统的重要知识点。HDFS 是 master/slave 体系结构。一个 HDFS 集群是由单个 NameNode 和众多 DataNode 组成，文件会被分成一个或多个块，这些块存储在一组 DataNode 中。
 因为 HDFS 是用 Java 语言搭建的，所以只要是支持 Java 语言的机器都可以运行 NameNode 和 DataNode。并且因为 Java 的高可移植性，HDFS 也具有非常广泛的应用范围。一种典型的 HDFS 部署模式是指定一个物理主机运行 NameNode，然后其余的机器运行 DataNode，在实际部署情况中，一般都是一台主机部署一个 DataNode。
-群集中存在单个 NameNode 极大地简化了系统的体系结构。 NameNode 是所有 HDFS 元数据的决定者和存储库。系统的这种设计使用户数据永远不会流经 NameNode，可理解 NameNode 为整个系统的中枢。
+群集中存在单个 NameNode 极大地简化了系统的体系结构。 NameNode 是所有 HDFS 元数据的决定者和存储库。系统的这种设计使用户数据永远不会流经 NameNode，可理解 NameNode 为整个系统的中枢。  
 架构如下图：
 
-[](/img/HDFS-1-1)
+![](/img/HDFS-1-1)
 
 首先图中的 rack 翻译为“机架”，可以理解为两个处于不同地方的机群，每个机群内部有自己的连接方式。其次在 DataNode 中存储的不是当个文件，而是文件块（Block），在 HDFS 中，每个大文件会拆分成多个 Block，然后将这些 Block 散布存储在不同的 DataNode 中，并且每个 Block 会有多个复制，也会存储到其他的 DataNode中。
 
@@ -73,7 +73,7 @@ HDFS 旨在跨大型集群中的计算机可靠地存储非常大的文件。它
 
 HDFS中的文件是一次写入的，并且在任何时候都只能有一个写入器。
 
-[](/img/HDFS1-2)
+![](/img/HDFS1-2)
 
 解释：如图所示，part-0 文件复制因子为r:2，其拆分的数据块号有{1,3}，所以 1 号数据块在第1，第3个 DataNode 上，3 号数据块在第5，第6个DataNode上；part-1文件解释同理。而这些信息都存储在 NameNode 中。
 
