@@ -5,133 +5,2578 @@
     <description>I'm the only one of me.</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 11 Sep 2019 15:06:15 +0800</pubDate>
-    <lastBuildDate>Wed, 11 Sep 2019 15:06:15 +0800</lastBuildDate>
+    <pubDate>Mon, 28 Oct 2019 21:13:14 +0800</pubDate>
+    <lastBuildDate>Mon, 28 Oct 2019 21:13:14 +0800</lastBuildDate>
     <generator>Jekyll v4.0.0</generator>
     
       <item>
-        <title>云计算、大数据、数据仓库</title>
-        <description>&lt;h3 id=&quot;云计算&quot;&gt;云计算&lt;/h3&gt;
-&lt;p&gt;        云计算本质上是一种计算资源集中分布和充分共享的效用计算模式,其中集中是为了计算资源的集约化管理,分布是便于扩展计算能力.集中分布式是针对云服务提供商的,充分共享是针对用户,在云计算中,虽然对于每个云用户来说都拥有一台超级计算机,但本质上,这些用户是充分共享了云服务商所提供的计算服务.而效用计算更多的是一种商业模式,就是用户按所需服务来付费.&lt;/p&gt;
-&lt;h3 id=&quot;大数据&quot;&gt;大数据&lt;/h3&gt;
-&lt;p&gt;        大数据的特点就是数据量大(虽然很多人都把大数据定义在T级别以上,其实我觉得这是有问题的,大数据的大其实应该是个相对概念,是相对于当前的存储技术和计算能力的),数据应用需求大,计算量大.数据量大是最基本的,需求大其实包含了需求的数量、多样性和实时性.计算量大是因为数据量大和需求量大和算法复杂（检索，推荐，模式识别）所致.大数据的这种特点使得我们很难找到通用的处理模式来解决大数据所面临的问题，我们只能针对不同的需求采用不同的处理方法，这也是大数据处理比较困难的症结所在。无论是传统的数据库还是最近兴起的NoSQL数据库，在大数据存储和处理方面其实都是有非常大的局限性的，所以分布式计算才在大数据处理中大兴其道。Hadoop虽然提供了比较完整的一套处理模式，但相对于大数据所面临的应用需求的多样性而言，能处理的问题域也是十分有限的。&lt;/p&gt;
-&lt;h3 id=&quot;数据仓库&quot;&gt;数据仓库&lt;/h3&gt;
-&lt;p&gt;        1988年，为解决企业的数据集成问题，IBM（卧槽，又是IBM）的两位研究员（Barry Devlin和Paul Murphy）创造性地提出了一个新的术语：数据仓库（Data Warehouse）。
-        我们可以不用管这个定义，简单的理解，其实就是我们为了进行OLAP，把分布在各个散落独立的数据库孤岛整合在了一个数据结构里面，称之为数据仓库。这个数据仓库在技术上是怎么建立的读者朋友们并不需要关心，但是我们要知道，原来各个数据孤岛中的数据，可能会在物理位置（比如沃尔玛在各个州可能都有自己的数据中心）、存储格式（比如月份是数值类型，但但天气可能是字符类型）、商业平台（不同数据库可能用的是Oracle数据库，有的是微软SQL Server数据库）、编写的语言（Java或者Scale等）等等各个方面完全不同，数据仓库要做的工作就是将他们按照所需要的格式提取出来，再进行必要的转换（统一数据格式）、清洗（去掉无效或者不需要的数据）等，最后装载进数据仓库.&lt;/p&gt;
-&lt;h3 id=&quot;区别关系&quot;&gt;区别&amp;amp;关系&lt;/h3&gt;
-&lt;ol&gt;
+        <title>聊聊 TCP 长连接和心跳那些事（转）</title>
+        <description>&lt;h3 id=&quot;前言&quot;&gt;前言&lt;/h3&gt;
+&lt;p&gt;可能很多 Java 程序员对 TCP 的理解只有一个三次握手，四次握手的认识，我觉得这样的原因主要在于 TCP 协议本身稍微有点抽象（相比较于应用层的 HTTP 协议）；其次，非框架开发者不太需要接触到 TCP 的一些细节。其实我个人对 TCP 的很多细节也并没有完全理解，这篇文章主要针对微信交流群里有人提出的长连接，心跳问题，做一个统一的整理。&lt;/p&gt;
+
+&lt;p&gt;在 Java 中，使用 TCP 通信，大概率会涉及到 Socket、Netty，本文将借用它们的一些 API 和设置参数来辅助介绍。&lt;/p&gt;
+
+&lt;h3 id=&quot;长连接与短连接&quot;&gt;长连接与短连接&lt;/h3&gt;
+&lt;p&gt;&lt;strong&gt;TCP 本身并没有长短连接的区别&lt;/strong&gt; ，长短与否，完全取决于我们怎么用它。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;短连接：每次通信时，创建 Socket；一次通信结束，调用 socket.close()。这就是一般意义上的短连接，短连接的好处是管理起来比较简单，存在的连接都是可用的连接，不需要额外的控制手段。&lt;/li&gt;
+  &lt;li&gt;长连接：每次通信完毕后，不会关闭连接，这样可以做到连接的复用。 &lt;strong&gt;长连接的好处是省去了创建连接的耗时&lt;/strong&gt;。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;短连接和长连接的优势，分别是对方的劣势。想要图简单，不追求高性能，使用短连接合适，这样我们就不需要操心连接状态的管理；想要追求性能，使用长连接，我们就需要担心各种问题：比如 &lt;strong&gt;端对端连接的维护，连接的保活&lt;/strong&gt; 。&lt;/p&gt;
+
+&lt;p&gt;长连接还常常被用来做数据的推送，我们大多数时候对通信的认知还是 request/response 模型，但 TCP 双工通信的性质决定了它还可以被用来做双向通信。在长连接之下，可以很方便的实现 push 模型，长连接的这一特性在本文并不会进行探讨，有兴趣的同学可以专门去搜索相关的文章。&lt;/p&gt;
+
+&lt;p&gt;短连接没有太多东西可以讲，所以下文我们将目光聚焦在长连接的一些问题上。纯讲理论未免有些过于单调，所以下文我借助一些 RPC 框架的实践来展开 TCP 的相关讨论。&lt;/p&gt;
+
+&lt;h3 id=&quot;服务治理框架中的长连接&quot;&gt;服务治理框架中的长连接&lt;/h3&gt;
+
+&lt;p&gt;前面已经提到过，追求性能时，必然会选择使用长连接，所以借助 Dubbo 可以很好的来理解 TCP。我们开启两个 Dubbo 应用，一个 server 负责监听本地 20880 端口（众所周知，这是 Dubbo 协议默认的端口），一个 client 负责循环发送请求。执行 lsof -i:20880 命令可以查看端口的相关使用情况：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://www.cnkirito.moe/tcp-talk/#lg=1&amp;amp;slide=0&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;*:20880 (LISTEN) 说明了 Dubbo 正在监听本地的 20880 端口，处理发送到本地 20880 端口的请求&lt;/li&gt;
+  &lt;li&gt;后两条信息说明请求的发送情况，验证了 TCP 是一个双向的通信过程，由于我是在同一个机器开启了两个 Dubbo 应用，所以你能够看到是本地的 53078 端口与 20880 端口在通信。我们并没有手动设置 53078 这个客户端端口，它是随机的。通过这两条信息，阐释了一个事实： &lt;strong&gt;即使是发送请求的一方，也需要占用一个端口&lt;/strong&gt; 。&lt;/li&gt;
+  &lt;li&gt;稍微说一下 FD 这个参数，他代表了 文件句柄 ，每新增一条连接都会占用新的文件句柄，如果你在使用 TCP 通信的过程中出现了 open too many files 的异常，那就应该检查一下，你是不是创建了太多连接，而没有关闭。细心的读者也会联想到长连接的另一个好处，那就是会占用较少的文件句柄。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;长连接的维护&quot;&gt;长连接的维护&lt;/h3&gt;
+
+&lt;p&gt;因为客户端请求的服务可能分布在多个服务器上，客户端自然需要跟对端创建多条长连接，我们遇到的第一个问题就是如何维护长连接。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;// 客户端
+public class NettyHandler extends SimpleChannelHandler {
+
+    private final Map&amp;lt;String, Channel&amp;gt; channels = new ConcurrentHashMap&amp;lt;String, Channel&amp;gt;(); // &amp;lt;ip:port, channel&amp;gt;
+}
+// 服务端
+public class NettyServer extends AbstractServer implements Server {
+    private Map&amp;lt;String, Channel&amp;gt; channels; // &amp;lt;ip:port, channel&amp;gt;
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;在 Dubbo 中，客户端和服务端都使用 ip:port 维护了端对端的长连接，Channel 便是对连接的抽象。我们主要关注 NettyHandler 中的长连接，服务端同时维护一个长连接的集合是 Dubbo 的额外设计，我们将在后面提到。&lt;/p&gt;
+
+&lt;p&gt;这里插一句，解释下为什么我认为客户端的连接集合要重要一点。TCP 是一个双向通信的协议，任一方都可以是发送者，接受者，那为什么还抽象了 Client 和 Server 呢？因为 建立连接这件事就跟谈念爱一样，必须要有主动的一方，你主动我们就会有故事 。Client 可以理解为主动建立连接的一方，实际上两端的地位可以理解为是对等的。&lt;/p&gt;
+
+&lt;h3 id=&quot;连接的保活&quot;&gt;连接的保活&lt;/h3&gt;
+
+&lt;p&gt;这个话题就有的聊了，会牵扯到比较多的知识点。首先需要明确一点，为什么需要连接的保活？当双方已经建立了连接，但因为网络问题，链路不通，这样长连接就不能使用了。需要明确的一点是，通过 netstat，lsof 等指令查看到连接的状态处于 ESTABLISHED 状态并不是一件非常靠谱的事，因为连接可能已死，但没有被系统感知到，更不用提假死这种疑难杂症了。如果保证长连接可用是一件技术活。&lt;/p&gt;
+
+&lt;h3 id=&quot;连接的保活keepalive&quot;&gt;连接的保活：KeepAlive&lt;/h3&gt;
+&lt;p&gt;首先想到的是 TCP 中的 KeepAlive 机制。KeepAlive 并不是 TCP 协议的一部分，但是大多数操作系统都实现了这个机制（所以需要在操作系统层面设置 KeepAlive 的相关参数）。KeepAlive 机制开启后，在一定时间内（一般时间为 7200s，参数 tcp_keepalive_time）在链路上没有数据传送的情况下，TCP 层将发送相应的 KeepAlive 探针以确定连接可用性，探测失败后重试 10（参数 tcp_keepalive_probes）次，每次间隔时间 75s（参数 tcp_keepalive_intvl），所有探测失败后，才认为当前连接已经不可用。&lt;/p&gt;
+
+&lt;p&gt;在 Netty 中开启 KeepAlive：&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    bootstrap.option(ChannelOption.SO_KEEPALIVE, true)
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Linux 操作系统中设置 KeepAlive 相关参数，修改 /etc/sysctl.conf 文件：&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;KeepAlive 机制是在网络层面保证了连接的可用性&lt;/strong&gt; ，但站在应用框架层面我们认为这还不够。主要体现在三个方面：&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;KeepAlive 的开关是在应用层开启的，但是具体参数（如重试测试，重试间隔时间）的设置却是操作系统级别的，位于操作系统的 /etc/sysctl.conf 配置中，这对于应用来说不够灵活。&lt;/li&gt;
+  &lt;li&gt;KeepAlive 的保活机制只在链路空闲的情况下才会起到作用，假如此时有数据发送，且物理链路已经不通，操作系统这边的链路状态还是 ESTABLISHED，这时会发生什么？自然会走 TCP 重传机制，要知道默认的 TCP 超时重传，指数退避算法也是一个相当长的过程。&lt;/li&gt;
+  &lt;li&gt;KeepAlive 本身是面向网络的，并不面向于应用，当连接不可用，可能是由于应用本身的 GC 频繁，系统 load 高等情况，但网络仍然是通的，此时，应用已经失去了活性，连接应该被认为是不可用的。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;我们已经为应用层面的连接保活做了足够的铺垫，下面就来一起看看，怎么在应用层做连接保活。&lt;/p&gt;
+
+&lt;h3 id=&quot;连接的保活应用层心跳&quot;&gt;连接的保活：应用层心跳&lt;/h3&gt;
+&lt;p&gt;终于点题了，文题中提到的 &lt;strong&gt;心跳&lt;/strong&gt; 便是一个本文想要重点强调的另一个重要的知识点。上一节我们已经解释过了，网络层面的 KeepAlive 不足以支撑应用级别的连接可用性，本节就来聊聊应用层的心跳机制是实现连接保活的。&lt;/p&gt;
+
+&lt;p&gt;如何理解应用层的心跳？简单来说，就是客户端会开启一个定时任务，定时对已经建立连接的对端应用发送请求（这里的请求是特殊的心跳请求），服务端则需要特殊处理该请求，返回响应。如果心跳持续多次没有收到响应，客户端会认为连接不可用，主动断开连接。不同的服务治理框架对心跳，建连，断连，拉黑的机制有不同的策略，但大多数的服务治理框架都会在应用层做心跳，Dubbo/HSF 也不例外。&lt;/p&gt;
+
+&lt;h3 id=&quot;应用层心跳的设计细节&quot;&gt;应用层心跳的设计细节&lt;/h3&gt;
+
+&lt;p&gt;以 Dubbo 为例，支持应用层的心跳，客户端和服务端都会开启一个 HeartBeatTask，客户端在 HeaderExchangeClient 中开启，服务端将在 HeaderExchangeServer 开启。文章开头埋了一个坑：Dubbo 为什么在服务端同时维护 Map&amp;lt;String,Channel&amp;gt; 呢？主要就是为了给心跳做贡献，心跳定时任务在发现连接不可用时，会根据当前是客户端还是服务端走不同的分支，客户端发现不可用，是重连；服务端发现不可用，是直接 close。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;    // HeartBeatTask
+    if (channel instanceof Client) {
+        ((Client) channel).reconnect();
+    } else {
+        channel.close();
+    }
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;Dubbo 2.7.x 相比 2.6.x 做了定时心跳的优化，使用 HashedWheelTimer 更加精准的控制了只在连接闲置时发送心跳。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;再看看 HSF 的实现，并没有设置应用层的心跳，准确的说，是在 HSF2.2 之后，使用 Netty 提供的 IdleStateHandler 更加优雅的实现了应用的心跳。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;ch.pipeline()
+        .addLast(&quot;clientIdleHandler&quot;, new IdleStateHandler(getHbSentInterval(), 0, 0));
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;处理 userEventTriggered 中的 IdleStateEvent 事件&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;@Override
+public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+    if (evt instanceof IdleStateEvent) {
+        callConnectionIdleListeners(client, (ClientStream) StreamUtils.streamOfChannel(ctx.channel()));
+    } else {
+        super.userEventTriggered(ctx, evt);
+    }
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;对于客户端，HSF 使用 SendHeartbeat 来进行心跳，每次失败累加心跳失败的耗时，当超过最大限制时断开乱接；对于服务端 HSF 使用 CloseIdle 来处理闲置连接，直接关闭连接。一般来说，服务端的闲置时间会设置的稍长。&lt;/p&gt;
+
+&lt;p&gt;熟悉其他 RPC 框架的同学会发现，不同框架的心跳机制真的是差距非常大。心跳设计还跟连接创建，重连机制，黑名单连接相关，还需要具体框架具体分析。&lt;/p&gt;
+
+&lt;p&gt;除了定时任务的设计，还需要在协议层面支持心跳。最简单的例子可以参考 nginx 的健康检查，而针对 Dubbo 协议，自然也需要做心跳的支持，如果将心跳请求识别为正常流量，会造成服务端的压力问题，干扰限流等诸多问题。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://www.cnkirito.moe/tcp-talk/#lg=1&amp;amp;slide=1&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;其中 Flag 代表了 Dubbo 协议的标志位，一共 8 个地址位。低四位用来表示消息体数据用的序列化工具的类型（默认 hessian），高四位中，第一位为 1 表示是 request 请求，第二位为 1 表示双向传输（即有返回 response）， 第三位为 1 表示是心跳事件 。&lt;/p&gt;
+
+&lt;h3 id=&quot;注意和-http-的-keepalive-区别对待&quot;&gt;注意和 HTTP 的 KeepAlive 区别对待&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;HTTP 协议的 KeepAlive 意图在于连接复用，同一个连接上串行方式传递请求 - 响应数据&lt;/li&gt;
+  &lt;li&gt;TCP 的 KeepAlive 机制意图在于保活、心跳，检测连接错误。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h3 id=&quot;keepalive-常见错误&quot;&gt;KeepAlive 常见错误&lt;/h3&gt;
+
+&lt;p&gt;启用 TCP KeepAlive 的应用程序，一般可以捕获到下面几种类型错误&lt;/p&gt;
+
+&lt;p&gt;ETIMEOUT 超时错误，在发送一个探测保护包经过 (tcp_keepalive_time + tcp_keepalive_intvl * tcp_keepalive_probes) 时间后仍然没有接收到 ACK 确认情况下触发的异常，套接字被关闭&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;java.io.IOException: Connection timed out
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;EHOSTUNREACH host unreachable(主机不可达) 错误，这个应该是 ICMP 汇报给上层应用的。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;java.io.IOException: No route to host
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;链接被重置，终端可能崩溃死机重启之后，接收到来自服务器的报文，然物是人非，前朝往事，只能报以无奈重置宣告之。&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;java.io.IOException: Connection reset by peer
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;总结&quot;&gt;总结&lt;/h3&gt;
+&lt;p&gt;有三种使用 KeepAlive 的实践方案：&lt;/p&gt;
+
+&lt;p&gt;1，默认情况下使用 KeepAlive 周期为 2 个小时，如不选择更改，属于误用范畴，造成资源浪费：内核会为每一个连接都打开一个保活计时器，N 个连接会打开 N 个保活计时器。 优势很明显：&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;TCP 协议层面保活探测机制，系统内核完全替上层应用自动给做好了&lt;/li&gt;
+  &lt;li&gt;内核层面计时器相比上层应用，更为高效&lt;/li&gt;
+  &lt;li&gt;上层应用只需要处理数据收发、连接异常通知即可&lt;/li&gt;
+  &lt;li&gt;数据包将更为紧凑
+2，关闭 TCP 的 KeepAlive，完全使用应用层心跳保活机制。由应用掌管心跳，更灵活可控，比如可以在应用级别设置心跳周期，适配私有协议。
+3，业务心跳 + TCP KeepAlive 一起使用，互相作为补充，但 TCP 保活探测周期和应用的心跳周期要协调，以互补方可，不能够差距过大，否则将达不到设想的效果。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;各个框架的设计都有所不同，例如 Dubbo 使用的是方案三，但阿里内部的 HSF 框架则没有设置 TCP 的 KeepAlive，仅仅由应用心跳保活。和心跳策略一样，这和框架整体的设计相关。&lt;/p&gt;
+</description>
+        <pubDate>Sat, 28 Sep 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2019/09/28/%E8%81%8A%E8%81%8A-TCP-%E9%95%BF%E8%BF%9E%E6%8E%A5%E5%92%8C%E5%BF%83%E8%B7%B3%E9%82%A3%E4%BA%9B%E4%BA%8B/</link>
+        <guid isPermaLink="true">http://localhost:4000/2019/09/28/%E8%81%8A%E8%81%8A-TCP-%E9%95%BF%E8%BF%9E%E6%8E%A5%E5%92%8C%E5%BF%83%E8%B7%B3%E9%82%A3%E4%BA%9B%E4%BA%8B/</guid>
+        
+        <category>计算机网络</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>Wireshark分析tcp协议</title>
+        <description>&lt;h3 id=&quot;一知识点归纳&quot;&gt;一、知识点归纳&lt;/h3&gt;
+&lt;h4 id=&quot;wireshark与对应的osi七层模型&quot;&gt;wireshark与对应的OSI七层模型&lt;/h4&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/Wireshark分析tcp协议/wireshark与对应的OSI七层模型.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+&lt;h4 id=&quot;tcp包的具体内容&quot;&gt;TCP包的具体内容&lt;/h4&gt;
+&lt;p&gt;从下图可以看到wireshark捕获到的TCP包中的每个字段。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/Wireshark分析tcp协议/对应tcp字段.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h5 id=&quot;关键字段解释&quot;&gt;关键字段解释：&lt;/h5&gt;
+&lt;ul&gt;
   &lt;li&gt;
-    &lt;p&gt;数据库和数据仓库都是数据的一种存储方式，大数据处理更多的是一种需求(问题)，而云计算是一种比较综合的需求(问题)解决方案。&lt;/p&gt;
+    &lt;p&gt;序号字段（tcp.seq）：TCP是面向字节流的（就是说TCP是传输时是按照一个一个字节来传送的），所以TCP连接中传送的数据流中的每一个字节都编上一个序号。序号字段的值则指的是本报文段所发送的数据的第一个字节的序号。&lt;/p&gt;
+
+    &lt;p&gt;例如，一报文段的序号字段值是301，而携带的数据共100个字节，这就表明本报文段的最后一个字节的序号为400，故下一个报文段的数据序号应从401开始。&lt;/p&gt;
   &lt;/li&gt;
-  &lt;li&gt;由于云计算本身的特性，天生就面临大数据处理(存储、计算等)问题，因为云计算的基本架构模式是C/S模式，其中S相对集中，而C是广泛分布。所有用户的数据和绝大部分的计算都是在S端完成的（数据量大，计算量大），加上用户也天然具有多样性（地域，文化，需求，个性化等），因此需求（也包括计算量）就非常大。&lt;/li&gt;
-  &lt;li&gt;云计算当然会涉及到数据的存储技术，但数据库技术对于云计算来说要视具体的情况来分析：
-  A)对于IaaS而言，数据库技术不是必需的，也不是必备的功能；
-  B)对于PaaS来说，数据库功能应该是必备的功能
-  C)对于SaaS而言，必然会用到数据库技术（包括传统关系数据库和NoSQL数据库）。
-而对于数据仓库技术，并不是云计算所必需的，但由于云数据的信息价值极大，类似一座金矿，我想云服务商是不可能放过从这些金矿中提取金子的.&lt;/li&gt;
-  &lt;li&gt;大数据首先所面临的问题就是大数据的存储问题，一般都会综合运用各种存储技术（文件存储，数据库存储），当然，你完全用文件存储或者数据库存储来解决，也是没问题的。与云计算类似，数据仓库技术不是必需的，但对于数据仓库技术对于结构化数据进行淘金还是非常有用的，当然，你不用数据仓库技术也可以，比如Hadoop模式。
-        在云计算和大数据处理中，最基础的技术其实是分布式计算技术。而对于构建分布式计算而言，多线程，同步，远程调用(RPC,RMI等)，进程管理与通信是其基本技术点。分布式计算编程是一种综合性应用编程，不仅需要有基本的技术点，还需要一定的组织管理知识。
-        就目前来说，云计算和大数据处理其实都没有形成一个统一的标准和定义，以上仅仅是我在工作和学习的过程中，对于这些东西的理解，也希望与大家一起来探讨这类问题。当然，也希望我的回复对你们有所帮助。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;-    确认号字段（tcp.ack）：是期望收到对方的下一个报文的数据的第一个字节的序号。若确认号=N，则表明到序号N-1为止的所有数据都已正确收到。
+
+     例如，B正确收到了A发送过来的一个报文段，其序号字段是指501，而数据长度是200字节（序号501～700），这表明B正确收到了A发送的到序号700为止的数据。因此B期望收到A的下一个数据序号为701，于是B在发送给A的确认报文段中把确认号置为701。
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;确认位（tcp.flags.ack）：只有当ACK=1时确认号字段才有效。当ACK为0时，确认号无效。
+    -    同步位（tcp.flags.syn）：同步SYN=1表示这是一个连接请求或连接接收报文。
+    当SYN=1，ACK=0时，表明这是一个连接请求报文，对方若同意连接，则在响应报文中使用SYN=1，ACK=1。即，SYN=1就表示这是一个连接请求报文或者连接接收报文。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;-    终止位（tcp.flags.fin）：用来释放一个连接，FIN=1表明此报文段的发送方的数据已经发送完毕，并请求释放传输连接。
+
+-    窗口字段 （tcp.window_size_value）：指出了现在允许对方发送的数据量，接收方的数据缓存空间是有限的，故用窗口值作为接收方让发送方设置其发送窗口的依据（拥塞控制，流量控制的依据）
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h4 id=&quot;tcp-协议建立连接传输数据释放连接事例&quot;&gt;tcp 协议建立连接，传输数据，释放连接事例：&lt;/h4&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/Wireshark分析tcp协议/tcp协议图解.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;二三次握手建立tcp连接-分析&quot;&gt;二、三次握手建立TCP连接 分析&lt;/h3&gt;
+&lt;p&gt;&lt;img src=&quot;/img/Wireshark分析tcp协议/tcp协议图解.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;图中可以看到wireshark截获到了三次握手的三个数据包。第四个包才是HTTP的， 这说明HTTP的确是使用TCP建立连接的。&lt;/p&gt;
+
+&lt;h4 id=&quot;第一次握手数据包&quot;&gt;第一次握手数据包&lt;/h4&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/Wireshark分析tcp协议/第一次握手.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;客户机的TCP首先向服务器的TCP发送一个连接请求报文段。这个特殊的报文段中不含应用层数据，其首部中的SYN标示位置为1，另外，客户机会随机选择一个起始序号seq=x（连接请求报文不携带任何数据，但要消耗一个序号）&lt;/p&gt;
+
+&lt;h4 id=&quot;第二次握手数据包&quot;&gt;第二次握手数据包&lt;/h4&gt;
+
+&lt;p&gt;服务器的TCP 收到请求报文段后，如同意建立连接，就向客户机发回确认，并为该TCP连接分配TCP缓存和变量。在确认报文段中，SYN和ACK位都被置为1，确认号字段的值为x+1 ，并且服务器随机产生一个起始序号seq=y (确认报文不携带数据，但也要消耗掉一个序号)。确认报文段同样不包含任何应用层数据；
+&lt;img src=&quot;/img/Wireshark分析tcp协议/第二次握手.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;第三次握手数据包&quot;&gt;第三次握手数据包&lt;/h4&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/Wireshark分析tcp协议/第三次握手.jpg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;当客户机收到确认报文段后，还要向服务器给出确认，并且也要给该连接分配缓存和变量，这个报文段的ACK被置为1，序号为X+1,确认号字段ack=y+1。该报文段可以携带数据，如果不携带数据则不消耗序号；&lt;/p&gt;
+
+</description>
+        <pubDate>Sat, 28 Sep 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2019/09/28/Wireshark%E5%88%86%E6%9E%90tcp%E5%8D%8F%E8%AE%AE/</link>
+        <guid isPermaLink="true">http://localhost:4000/2019/09/28/Wireshark%E5%88%86%E6%9E%90tcp%E5%8D%8F%E8%AE%AE/</guid>
+        
+        <category>计算机网络</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>初始机器人操作系统ROS</title>
+        <description>&lt;h3 id=&quot;一ros简介&quot;&gt;一、ROS简介&lt;/h3&gt;
+
+&lt;p&gt;ROS 是一个适用于机器人的开源的元操作系统。它提供了操作系统应有的服务，包括硬件抽象，底层设备控制，常用函数的实现，进程间消息传递，以及包管理。它也提供用于获取、编译、编写、和跨计算机运行代码所需的工具和库函数。在某些方面ROS相当于一种“机器人框架（robot frameworks）”类似的“机器人框架”有：Player，YARP，Orocos，CARMEN，Orca，MOOS和 Microsoft Robotics Studio。&lt;/p&gt;
+
+&lt;p&gt;ROS 运行时的“蓝图”是一种基于ROS通信基础结构的松耦合点对点进程网络。ROS实现了几种不同的通信方式，包括基于同步RPC样式通信的服务（services）机制，基于异步流媒体数据的话题（topics）机制以及用于数据存储的参数服务器（Parameter Server）。&lt;/p&gt;
+
+&lt;p&gt;ROS并不是一个实时的框架，但ROS可以嵌入实时程序。Willow Garage的PR2机器人使用了一种叫做pr2_etherCAT的系统来实时发送或接收ROS消息。ROS也可以与Orocos实时工具包无缝集成。&lt;/p&gt;
+
+&lt;h3 id=&quot;目的&quot;&gt;目的&lt;/h3&gt;
+&lt;p&gt;很多人都在问“ROS与其它机器人软件平台有什么不同？”这是一个很难解答的问题。因为ROS不是一个集成了大多数功能或特征的框架。事实上，ROS 的主要目标是为机器人研究和开发提供代码复用的支持。ROS是一个分布式的进程（也就是节点）框架，这些进程被封装在易于被分享和发布的程序包和功能包集中。ROS也支持一种类似于代码储存库的联合系统，这个系统也可以实现工程的协作及发布。这个设计可以使一个工程的开发和实现从文件系统到用户接口完全独立决策（不受ROS限制）。同时，所有的工程都可以被ROS的基础工具整合在一起。&lt;/p&gt;
+
+&lt;p&gt;为了支持分享和协作的主要目的，ROS框架也有其它几个目标：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;小型化：ROS尽可能设计的很小 – 我们不封装您的 main() 函数 – 所以为ROS编写的代码可以轻松的在其它机器人软件平台上使用。 由此得出的必然结论是ROS可以轻松集成在其它机器人软件平台：ROS已经可以与OpenRAVE，Orocos和Player集成。
+ROS不敏感库：ROS的首选开发模型都是用不依赖ROS的干净的库函数编写而成。
+语言独立：ROS框架可以简单地使用任何的现代编程语言实现。我们已经实现了Python版本，C++版本和 Lisp版本。同时，我们也拥有Java 和 Lua版本的实验库。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;方便测试：ROS内建一个了叫做rostest的单元/集成测试框架，可以轻松安装或卸载测试模块。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;可扩展：ROS可以适用于大型运行时系统和大型开发进程。&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;所以，“ROS与其它机器人软件平台有什么不同？”很难得到一个适用于所有情况的答案，但是，如果你选择使用其它机器人软件平台，我们希望你仍然可以使用到很多基于ROS发布的库函数。至于更多细节，这封Brian Gerkey（同时涉猎 Player 和 ROS）向ROS用户所写的关于ROS和Player区别的电子邮件（包括OpenCV 的集成）可以为我们提供一些比较：&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;这个问题的答案，和许多问题一样，视情况而定。特别是取悦于你想要干什么。Player非常适合简洁的非铰接的移动平台。它的设计为那些激光雷达的先锋提供了简单的传感器和电机操作方法。
+
+然而，ROS是围绕着基于驱动传感器（倾斜式激光，盘式/斜试头部传感器，机械臂传感器）的复杂移动处理平台设计的。与Player相比，ROS可以更方便的借助分布式计算设备，而且我可以肯定，越高级的应用越适用于ROS而不是Player。换句话说，Player提供了更多的硬件驱动，而ROS提供了更多算法。
+
+我认为，说ROS比Player更加灵活强大是公平的。但是，现实情况是，更加灵活强大意味着更加复杂。尽管我们很努力的使ROS更加简单易用，ROS仍然需要一个很长的学习过程。当然，熟悉Player会对学习ROS有很大帮助，因为它们很多基本的方面都是相似的。
+
+关于你们针对OpenCV集成提出的问题，我想你们会发现ROS集成OpenCV的代码要比Player多一点。未来，当ROS和OpenCV团队明显重叠时，你们会发现这种差异将变得更大。
+
+我发现ROS利用了大量的来自于Player工程的代码。ROS节点的代码重用了许多Player的驱动，而且Stage和Gazebo可在ROS社区中得到广泛的支持和良好的应用。
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;ros主要特点&quot;&gt;ROS主要特点：&lt;/h3&gt;
+
+&lt;p&gt;1）点对点设计&lt;/p&gt;
+
+&lt;p&gt;一个使用ROS的系统包括一系列进程，这些进程存在于多个不同的主机并且在运行过程中通过端对端的拓扑结构进行联系，如图2所示。虽然基于中心服务器的那些软件框架也可以实现多进程和多主机的优势，但是在这些框架中，当各电脑通过不同的网络进行连接时，中心数据服务器就会发生问题。ROS的点对点设计以及服务和节点管理器等机制可以分散由计算机视觉和语音识别等功能带来的实时计算压力，能够适应多机器人遇到的挑战。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ros/初始机器人操作系统ros-1.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;2）多语言支持&lt;/p&gt;
+
+&lt;p&gt;ROS现在支持许多种不同的语言，例如C++、Python、Octave和LISP，也包含其他语言的多种接口实现。&lt;/p&gt;
+
+&lt;p&gt;3）精简与集成&lt;/p&gt;
+
+&lt;p&gt;ROS建立的系统具有模块化的特点，各模块中的代码 可以单独编译，而且编译使用的CMake工具使它很容易的就实现精简的理念。ROS基本将复杂的代码封装在库里 ，只是创建了一些小的应用程序为ROS显示库的功能，就允许了对简单的代码超越原型进行移植和重新使用。 作为一种新加入的有优势，单元测试当代码在库中分散后也变得非常的容易，一个单独的测试程序可以测试库 中很多的特点。ROS利用了很多现在已经存在的开源项目的代码，比如说从Player项目中借鉴了驱动、运动 控制和仿真方面的代码，从OpenCV中借鉴了视觉算法方面的代码，从OpenRAVE借鉴了规划算法的内容，还有很 多其他的项目。在每一个实例中，ROS都用来显示多种多样的配置选项以及和各软件之间进行数据通信，也同 时对它们进行微小的包装和改动。ROS可以不断的从社区维护中进行升级，包括从其他的软件库、应用补丁中 升级ROS的源代码。&lt;/p&gt;
+
+&lt;p&gt;4）具有丰富的工具包，且免费开源。&lt;/p&gt;
+
+&lt;h3 id=&quot;如何学习ros&quot;&gt;如何学习ROS？&lt;/h3&gt;
+
+&lt;p&gt;要想学ROS，应该从哪里入手，它的先后顺序是怎样的呢？ROS由四大部分构成，第一个是基础结构，这些通讯机制是如何实现的；第二个是工具，包括仿真工具、调试工具等；第三个是体现它功能的package；第四个就是社区，如何去上面下载、发布代码，和其他开发者交流学习。&lt;/p&gt;
+
+&lt;h3 id=&quot;ros-设计思想分布式架构&quot;&gt;ROS-设计思想：分布式架构&lt;/h3&gt;
+&lt;p&gt;设计思想主要是分布式架构，将机器人的功能和软件，做成一个个节点，然后每个节点通过topic进行沟通，但你这些节点可以部署在同一台机器上，也可以部署在不同机器上，还可以部署在互联网上。&lt;/p&gt;
+
+&lt;h3 id=&quot;ros-核心概念&quot;&gt;ROS-核心概念&lt;/h3&gt;
+
+&lt;p&gt;ROS核心概念如下：&lt;/p&gt;
+
+&lt;p&gt;1）Nodes-&amp;gt;节点&lt;/p&gt;
+
+&lt;p&gt;节点是各自独立的可执行文件，能够通过话题、服务或参数，与服务器或其他进程(节点)通信。ROS通过使用节点的方式将代码和功能解耦，提高了系统容错能力和可维护性，使系统简化。同时，节点允许了ROS系统能够布置在任意多个机器上并同时运行。关于节点需要注意的事项，节点在系统中必须有唯一的名称；节点可以使用不同的库进行编写，如roscpp和rospy，其中roscpp基于C++，rospy基于Python。&lt;/p&gt;
+
+&lt;p&gt;2）Messages and Topics-&amp;gt;消息与话题（或主题）&lt;/p&gt;
+
+&lt;p&gt;节点之间通过topic机制进行通信，topic机制是一个一对多的Publish/Subscribe 模式: 同一个话题也可以有很多个订阅者，它的底层传输依靠的是TCP/IP，也可以是UDP。topic具体传输的message，具有一定的类型和数据结构，包括ROS提供的标准类型，和用户自定义类型。&lt;/p&gt;
+
+&lt;p&gt;3）Services and Parameters-&amp;gt;服务与参数&lt;/p&gt;
+
+&lt;p&gt;除了topic，ROS还提供另一种一对一的机制，也就是Service/Client，当你需要直接与节点通信并获得应答时，将无法通过话题实现，这时需要使用该服务。&lt;/p&gt;
+
+&lt;p&gt;4）ROS Master-&amp;gt;ROS管理器&lt;/p&gt;
+
+&lt;p&gt;Master向ROS系统中其他节点提供命名和注册服务，跟踪和记录话题的发布者和订阅者，使ROS 节点之间能够相互查找。一旦节点找到了彼此，就能建立一种点对点的通信方式。&lt;/p&gt;
+
+&lt;p&gt;5）Stacks and packages-&amp;gt;堆栈与功能包&lt;/p&gt;
+
+&lt;p&gt;那么如何组织代码呢？这主要依靠功能包(Package) ，ROS中软件组织的基本形式，用于创建ROS程序。功能包包含源代码和功能包清单(Manifest) 。功能包清单提供关于功能包、许可信息、依赖关系、编译标志等的信息。功能包清单是一个manifests.xml文件，通过这个文件能够实现对功能包的管理。&lt;/p&gt;
+
+&lt;h3 id=&quot;ros-核心模块&quot;&gt;ROS-核心模块&lt;/h3&gt;
+&lt;p&gt;ROS核心模块包括通信结构基础、机器人特性功能以及工具集。通信结构基础包括消息传递、记录和回放消息、远程过程调用、分布式参数系统；机器人特性功能包括标准机器人消息，机器人几何库，机器人描述语言，抢占式远程过程调用，诊断，位置估计、定位与导航；工具集包括命令式工具、可视化工具以及图形化接口。详情见图&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/ros/初始机器人操作系统ros-2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;ros-核心工具&quot;&gt;ROS-核心工具&lt;/h3&gt;
+
+&lt;p&gt;ROS拥有很多第三方的核心工具的支持，或者说Package。比较常见的是这五个工具：Gazebo是一个三维仿真环境；OpenCV是计算机视觉库，PCL是点云库，MoveIt！是机械臂的规划控制库，Industrial是工业上会用的库。另外MRPT，是一个非常好的机器人编程工具箱。然后，如果对实时控制要求比较高的话，可以考虑The Orocos Project。&lt;/p&gt;
+
+&lt;p&gt;ROS常用命令工具包括rostopic (Topics)、rosservice (Services)、rosnode (Nodes)、rosparam (Parameters)、rosmsg (Messages)、rossrv (Services)和roswtf (General debugging)。&lt;/p&gt;
+
+&lt;p&gt;ROS用的最多的可视化工具是rqt（集成图像交互界面）和 rviz（3D 可视化工具）。&lt;/p&gt;
+
+&lt;p&gt;ROS具有非常强的数据存储/回放功能，也就是使用bag存储topic(例如现实中的传感器数据)，以后调用bag的topic数据则不必每次都在现实中运行机器人，速度非常快。&lt;/p&gt;
+
+&lt;p&gt;ROS log系统记录软件运行相关信息，便于以后的调试。&lt;/p&gt;
+
+&lt;p&gt;仿真环境由易到难主要有这三个：Turtlesim、ArbotiX、Gazebo。Turtlesim是一个QT开发的2D轨迹显示界面，只能显示运动轨迹；ArbotiX是含有一个差速驱动机器人的rviz模拟器，机器人运动及topic数据的3D显示，但不包含物理学引擎；Gazebo是功能齐全的3D物理模拟器，不过缺点是非常重，对内存和显卡要求高，慎入&lt;/p&gt;
+
+&lt;h3 id=&quot;参考&quot;&gt;参考&lt;/h3&gt;
+
+&lt;p&gt;&lt;a href=&quot;https://www.jianshu.com/p/0869eec39a3b&quot;&gt;机器人操作系统ROS(一)-初识&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;a href=&quot;http://wiki.ros.org/cn/ROS/Introduction&quot;&gt;ROS中文官网&lt;/a&gt;&lt;/p&gt;
+</description>
+        <pubDate>Tue, 17 Sep 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2019/09/17/%E5%88%9D%E5%A7%8B%E6%9C%BA%E5%99%A8%E4%BA%BA%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9FROS/</link>
+        <guid isPermaLink="true">http://localhost:4000/2019/09/17/%E5%88%9D%E5%A7%8B%E6%9C%BA%E5%99%A8%E4%BA%BA%E6%93%8D%E4%BD%9C%E7%B3%BB%E7%BB%9FROS/</guid>
+        
+        <category>ros,机器人</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>网络安全-重放攻击</title>
+        <description>&lt;h3 id=&quot;一什么是重放攻击&quot;&gt;一、什么是重放攻击?&lt;/h3&gt;
+
+&lt;p&gt;我们在开发接口的时候通常会考虑接口的安全性，比如说我们通常会要求请求的url携带一个经过算法加密的签名sign到服务端进行验证，如果验证通过，证明请求是合法的。比如以下的url:&lt;/p&gt;
+
+&lt;p&gt;http://wokao66.com/in.json?uid=7&amp;amp;sign=xxxxx&lt;/p&gt;
+
+&lt;p&gt;其中sign的常用加密算法为MD5，MD5算法是一种不可逆算法，也就是说你加密之后就不能解密了。这通常要求通讯双方约定好一个私钥appSecret，这个私钥是约定好的，不能在网络上进行传输。但单单有这个加密是远远不够的，比如说我是一名黑客，我抓包了你当前执行成功的请求信息，我们假设为request-1,既然你都执行成功了，也就是说你的这次请求的所有参数都是合法的，那么作为黑客的我，我就想能不能将你request-1的请求数据再封装成另外一个请求request-2,然后再去请求接口，如果此时系统未作任何处理，那么系统肯定是认为request-2是合法的，肯定还是会放行，但至于业务上成不成功，那么是另外一个问题了，倘若在执行业务前需要进行一个相对耗时的数据库操作，那么大量的request-2,request-3势必会使服务器瘫痪。
+酱紫，可能语言难以理解，我画个图先：&lt;br /&gt;
+&lt;img src=&quot;/img/防重放1-1.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;首先正常的请求系统会要求校验，当你的合法请求被黑客拦截之后，黑客就会重复地发送该合法请求，从而达到欺骗系统的目的！这种重复利用合法请求进行攻击成为重放。&lt;/p&gt;
+
+&lt;h3 id=&quot;二如何防止重放攻击&quot;&gt;二、如何防止重放攻击？&lt;/h3&gt;
+&lt;p&gt;重放攻击的原理其实很简单，无非就是系统没有对合法请求进行唯一性校验。什么意思呢？就是说系统要知道你第一次的合法请求request-1不能被重复执行，要保证每次请求的唯一性。那么怎么去防止重放攻击呢？&lt;/p&gt;
+&lt;h4 id=&quot;时间戳&quot;&gt;时间戳&lt;/h4&gt;
+&lt;p&gt;&lt;strong&gt;“时戳”&lt;/strong&gt; ──代表当前时刻的数&lt;br /&gt;
+&lt;strong&gt;基本思想&lt;/strong&gt;──A接收一个消息当且仅当其包含一个对A而言足够接近当前时刻的时戳&lt;br /&gt;
+&lt;strong&gt;原理&lt;/strong&gt;──重放的时戳将相对远离当前时刻&lt;br /&gt;
+&lt;strong&gt;时钟要求&lt;/strong&gt;──通信各方的计算机时钟保持同步&lt;br /&gt;
+&lt;strong&gt;处理方式&lt;/strong&gt;──设置大小适当的时间窗（间隔），越大越能包容网络传输延时，越小越能防重放攻击&lt;br /&gt;
+&lt;strong&gt;适用性&lt;/strong&gt;──用于非连接性的对话（在连接情形下双方时钟若偶然出现不同步，则正确的信息可能会  被误判为重放信息而丢弃，而错误的重放信息可能会当作最新信息而接收）&lt;/p&gt;
+
+&lt;h4 id=&quot;序号&quot;&gt;序号&lt;/h4&gt;
+&lt;p&gt;通信双方通过消息中的序列号来判断消息的新鲜性&lt;br /&gt;
+要求通信双方必须事先协商一个初始序列号，并协商递增方法&lt;/p&gt;
+
+&lt;h4 id=&quot;提问与应答&quot;&gt;提问与应答&lt;/h4&gt;
+&lt;p&gt;&lt;strong&gt;“现时”&lt;/strong&gt; ──与当前事件有关的一次性随机数N（互不重复即可）
+&lt;strong&gt;基本做法&lt;/strong&gt;──期望从B获得消息的A 事先发给B一个现时N，并要求B应答的消息中包含N或f(N)，f是A、B预先约定的简单函数
+&lt;strong&gt;原理&lt;/strong&gt;──A通过B回复的N或f(N)与自己发出是否一致来判定本次消息是不是重放的
+时钟要求──无
+&lt;strong&gt;适用性&lt;/strong&gt;──用于连接性的对话
+重放攻击是对协议的攻击中危害最大、最常见的一种攻击形式。&lt;/p&gt;
+
+&lt;h3 id=&quot;以登录为例看具体的例子&quot;&gt;以登录为例看具体的例子&lt;/h3&gt;
+&lt;h4 id=&quot;常规流程&quot;&gt;常规流程&lt;/h4&gt;
+&lt;ol&gt;
+  &lt;li&gt;前端web页面用户输入账号、密码，点击登录。&lt;/li&gt;
+  &lt;li&gt;请求提交之前，web端首先通过客户端脚本如javascript对密码原文进行md5加密。&lt;/li&gt;
+  &lt;li&gt;提交账号、md5之后的密码&lt;/li&gt;
+  &lt;li&gt;请求提交至后端，验证账号与密码是否与数据库中的一致，一致则认为登录成功，反之失败。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;有什么问题呢&quot;&gt;有什么问题呢？&lt;/h4&gt;
+&lt;p&gt;上述流程看似安全，认为传输过程中的密码是md5之后的，即使被监听截取到，由于md5的不可逆性，密码明文也不会泄露。其实不然！监听者无需解密出密码明文即可登录！监听者只需将监听到的url（如：http://&lt;em&gt;**&lt;/em&gt;/login.do?method=login&amp;amp;password=md5之后的密码&amp;amp;userid=登录账号）重放一下，即可冒充你的身份登录系统。&lt;/p&gt;
+
+&lt;h4 id=&quot;稍微安全点的方式&quot;&gt;稍微安全点的方式&lt;/h4&gt;
+&lt;ol&gt;
+  &lt;li&gt;进入登录页面时，生成一个随机码（称之为盐值），在客户端页面和session中各保存一份。&lt;/li&gt;
+  &lt;li&gt;客户端提交登录请求时，将md5之后的密码与该随机码拼接后，再次执行md5，然后提交（提交的密码=md5(md5(密码明文)+随机码)）。&lt;/li&gt;
+  &lt;li&gt;后端接收到登录请求后，将从数据库中查询出的密码与session中的随机码拼接后，md5运算，然后与前端传递的结果进行比较。
+    &lt;h4 id=&quot;为何要这样&quot;&gt;为何要这样？&lt;/h4&gt;
+    &lt;p&gt;该登录方式，即使登录请求被监听到，回放登录URL，由于随机码不匹配（监听者的session中的随机码与被监听者的session中的随机码相同概率可忽略），无法登录成功。
+该登录方式，由于传输的密码是原密码md5之后与随机码再次md5之后的结果，即使监听者采用暴力破解的方式，也很难解密出密码明文。&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;更进一步&quot;&gt;更进一步&lt;/h4&gt;
+&lt;p&gt;考虑到密码输入的方便性，好多用户的密码都设置的很短，并且不够复杂，往往是6位数字字母组合，这样的密码md5之后保存到数据库，一旦数据库数据泄露，简单密码的md5结果很容易通过暴力破解的方式给解密出来，何况md5出现了这么多年，可能已经有不少字典了！同时为了方便用户登录的方便性，我们的系统一般不可能要求用户设置很长、很复杂的密码！怎么办？&lt;strong&gt;加固定盐值&lt;/strong&gt;。&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;系统设置一个固定的盐值，该盐值最好足够复杂，如:1qaz2wsx3edc4rfv!@#$%^&amp;amp;qqtrtRTWDFHAJBFHAGFUAHKJFHAJHFJHAJWRFA&lt;/li&gt;
+  &lt;li&gt;用户注册、修改密码时，将用户的原始密码与我们的固定盐值拼接，然后做md5运算。&lt;/li&gt;
+  &lt;li&gt;传递至后端，保存进数据库（数据库中保存的密码是用户的原始密码拼接固定盐值后，md5运算后的结果）。&lt;/li&gt;
+  &lt;li&gt;登录时，将用户的原始密码与我们的固定盐值进行拼接，然后做md5运算，运算后的结果再拼接上我们的随机码，再次md5运算，然后提交。&lt;/li&gt;
+  &lt;li&gt;后端接收到登录请求后，将从数据库中查询出的密码与session中的随机码拼接后，md5运算，然后与前端传递的结果进行比较。
+    &lt;h4 id=&quot;再再进一步&quot;&gt;再再进一步&lt;/h4&gt;
+    &lt;p&gt;加登录验证码，可预防人为地暴力登录破解
+账户锁定，如果用户密码输入错误次数达到一定量后（如6次），则可以锁定该账号&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+</description>
+        <pubDate>Mon, 16 Sep 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2019/09/16/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8-%E9%87%8D%E6%94%BE%E6%94%BB%E5%87%BB/</link>
+        <guid isPermaLink="true">http://localhost:4000/2019/09/16/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8-%E9%87%8D%E6%94%BE%E6%94%BB%E5%87%BB/</guid>
+        
+        <category>网络安全</category>
+        
+        <category>重放攻击</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>网络安全-RSA加密</title>
+        <description>&lt;p&gt;&lt;strong&gt;这里将A理解为客户端,B理解为服务端,可以比较好理解.&lt;/strong&gt;&lt;/p&gt;
+&lt;h3 id=&quot;加解密过程简述&quot;&gt;加解密过程简述&lt;/h3&gt;
+&lt;p&gt;A和B进行通信加密,B要先生成一对RSA密钥,B自己持有私钥,给A公钥 —&amp;gt;A使用B的公钥加密要发送的内容,然后B接收到密文后通过自己的私钥解密内容&lt;/p&gt;
+
+&lt;h3 id=&quot;签名验签过程简述&quot;&gt;签名验签过程简述&lt;/h3&gt;
+&lt;p&gt;A给B发送消息,A先计算出消息的消息摘要,然后使用自己的私钥加密消息摘要,被加密的消息摘要就是签名.(A用自己的私钥给消息摘要加密成为签名)&lt;/p&gt;
+
+&lt;p&gt;B收到消息后,也会使用和A相同的方法提取消息摘要,然后用A的公钥解密签名,并与自己计算出来的消息摘要进行比较–&amp;gt;如果相同则说明消息是A发送给B的,同时,A也无法否认自己发送消息给B的事实.(B使用A的公钥解密签名文件的过程,叫做”验签”).&lt;/p&gt;
+
+&lt;p&gt;数字签名的作用:保证数据完整性,机密性和发送方角色的不可抵赖性
+加密与签字结合时，两套公私钥是不同的&lt;/p&gt;
+
+&lt;h3 id=&quot;对签名和验签过程详细理解&quot;&gt;对签名和验签过程详细理解:&lt;/h3&gt;
+&lt;p&gt;A-&amp;gt;B:&lt;br /&gt;
+&lt;strong&gt;签名过程:&lt;/strong&gt;&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;A计算消息m的消息摘要,记为 h(m)&lt;/li&gt;
+  &lt;li&gt;A使用私钥(n,d)对h(m)加密,生成签名s, s满足:s=(h(m))^d mod n;
+由于A是用自己的私钥对消息摘要加密,所以只用使用s的公钥才能解密该消息摘要,这样A就不可否认自己发送了该消息给B&lt;/li&gt;
+  &lt;li&gt;A发送消息和签名(m,s)给B&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;strong&gt;验签过程:&lt;/strong&gt;&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;B计算消息m的消息摘要(计算方式和A相同),记为h(m)&lt;/li&gt;
+  &lt;li&gt;B使用A的公钥(n,e)解密s,得到 H(m), H(m) = s^e mod n&lt;/li&gt;
+  &lt;li&gt;B比较H(m)与h(m),相同才能证明验签成功&lt;/li&gt;
 &lt;/ol&gt;
 
 </description>
-        <pubDate>Mon, 09 Sep 2019 00:00:00 +0800</pubDate>
-        <link>http://localhost:4000/2019/09/09/%E4%BA%91%E8%AE%A1%E7%AE%97-%E5%A4%A7%E6%95%B0%E6%8D%AE-%E6%95%B0%E6%8D%AE%E4%BB%93%E5%BA%93/</link>
-        <guid isPermaLink="true">http://localhost:4000/2019/09/09/%E4%BA%91%E8%AE%A1%E7%AE%97-%E5%A4%A7%E6%95%B0%E6%8D%AE-%E6%95%B0%E6%8D%AE%E4%BB%93%E5%BA%93/</guid>
+        <pubDate>Mon, 16 Sep 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2019/09/16/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8-RSA%E5%8A%A0%E5%AF%86/</link>
+        <guid isPermaLink="true">http://localhost:4000/2019/09/16/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8-RSA%E5%8A%A0%E5%AF%86/</guid>
         
-        <category>大数据</category>
+        <category>网络安全</category>
         
-        <category>云计算</category>
-        
-        
-      </item>
-    
-      <item>
-        <title>zookeeper-分布式应用协调服务</title>
-        <description>&lt;h3 id=&quot;zookeeper是什么&quot;&gt;Zookeeper是什么？&lt;/h3&gt;
-&lt;p&gt;        引用官方的说法：“Zookeeper是一个高性能，分布式的，开源分布式应用协调服务。它提供了简单原始的功能，分布式应用可以基于它实现更高级 的服务，比如同步，配置管理，集群管理，名空间。它被设计为易于编程，使用文件系统目录树作为数据模型。服务端跑在java上，提供java和C的客户端 API”。&lt;/p&gt;
-&lt;h3 id=&quot;zookeeper总体结构&quot;&gt;Zookeeper总体结构&lt;/h3&gt;
-&lt;p&gt;        Zookeeper服务自身组成一个集群(2n+1个服务允许n个失效)。Zookeeper服务有两个角色，一个是leader，负责写服务和数据同步，剩下的是follower，提供读服务，leader失效后会在follower中重新选举新的leader。&lt;/p&gt;
-
-&lt;p&gt;Zookeeper逻辑图如下，
-&lt;img src=&quot;/img/Zookeeper逻辑图.jpg&quot; alt=&quot;Zookeeper逻辑图.jpg&quot; title=&quot;Zookeeper逻辑图.jpg&quot; /&gt;&lt;/p&gt;
-
-&lt;p&gt;1.客户端可以连接到每个server，每个server的数据完全相同。
-2.每个follower都和leader有连接，接受leader的数据更新操作。
-3.Server记录事务日志和快照到持久存储。
-4.大多数server可用，整体服务就可用。&lt;/p&gt;
-
-&lt;h3 id=&quot;zookeeper数据模型&quot;&gt;Zookeeper数据模型&lt;/h3&gt;
-&lt;p&gt;        Zookeeper表现为一个分层的文件系统目录树结构（不同于文件系统的是，节点可以有自己的数据，而文件系统中的目录节点只有子节点）。
-数据模型结构图如下，
-&lt;img src=&quot;/img/zookeeper数据模型结构.png&quot; alt=&quot;数据模型结构图.png&quot; title=&quot;数据模型结构图.png&quot; /&gt;&lt;/p&gt;
-
-</description>
-        <pubDate>Mon, 09 Sep 2019 00:00:00 +0800</pubDate>
-        <link>http://localhost:4000/2019/09/09/zookeeper-%E5%88%86%E5%B8%83%E5%BC%8F%E5%BA%94%E7%94%A8%E5%8D%8F%E8%B0%83%E6%9C%8D%E5%8A%A1/</link>
-        <guid isPermaLink="true">http://localhost:4000/2019/09/09/zookeeper-%E5%88%86%E5%B8%83%E5%BC%8F%E5%BA%94%E7%94%A8%E5%8D%8F%E8%B0%83%E6%9C%8D%E5%8A%A1/</guid>
-        
-        <category>大数据</category>
+        <category>RSA</category>
         
         
       </item>
     
       <item>
-        <title>HIVE和HBASE区别</title>
-        <description>&lt;h3 id=&quot;两者分别是什么&quot;&gt;两者分别是什么？&lt;/h3&gt;
-&lt;p&gt;        Apache Hive是一个构建在Hadoop基础设施之上的数据仓库。通过Hive可以使用HQL语言查询存放在HDFS上的数据。HQL是一种类SQL语言，这种语言最终被转化为Map/Reduce. 虽然Hive提供了SQL查询功能，但是Hive不能够进行交互查询–因为它只能够在Haoop上批量的执行Hadoop。&lt;/p&gt;
+        <title>机器学习中涉及的数学知识</title>
+        <description>&lt;h3 id=&quot;一概述&quot;&gt;一、概述&lt;/h3&gt;
 
-&lt;p&gt;        Apache HBase是一种Key/Value系统，它运行在HDFS之上。和Hive不一样，Hbase的能够在它的数据库上实时运行，而不是运行MapReduce任务。Hive被分区为表格，表格又被进一步分割为列簇。列簇必须使用schema定义，列簇将某一类型列集合起来（列不要求schema定义）。例如，“message”列簇可能包含：“to”, ”from” “date”, “subject”, 和”body”. 每一个 key/value对在Hbase中被定义为一个cell，每一个key由row-key，列簇、列和时间戳。在Hbase中，行是key/value映射的集合，这个映射通过row-key来唯一标识。Hbase利用Hadoop的基础设施，可以利用通用的设备进行水平的扩展。&lt;/p&gt;
-&lt;h3 id=&quot;两者的特点&quot;&gt;两者的特点&lt;/h3&gt;
-&lt;p&gt;         Hive帮助熟悉SQL的人运行MapReduce任务。因为它是JDBC兼容的，同时，它也能够和现存的SQL工具整合在一起。运行Hive查询会花费很长时间，因为它会默认遍历表中所有的数据。虽然有这样的缺点，一次遍历的数据量可以通过Hive的分区机制来控制。分区允许在数据集上运行过滤查询，这些数据集存储在不同的文件夹内，查询的时候只遍历指定文件夹（分区）中的数据。这种机制可以用来，例如，只处理在某一个时间范围内的文件，只要这些文件名中包括了时间格式。&lt;/p&gt;
+&lt;p&gt;在学习机器学习过程中，遇到了很多数学公式以及理论，使得学习机器学习的过程变得无比艰辛，故把机器学习中涉及的一些数学理论，方法整理出来，以供日后查阅。涉及的知识包括：概率论，线性代数，数值分析，最优化等。&lt;/p&gt;
 
-&lt;p&gt;        HBase通过存储key/value来工作。它支持四种主要的操作：增加或者更新行，查看一个范围内的cell，获取指定的行，删除指定的行、列或者是列的版本。版本信息用来获取历史数据（每一行的历史数据可以被删除，然后通过Hbase compactions就可以释放出空间）。虽然HBase包括表格，但是schema仅仅被表格和列簇所要求，列不需要schema。Hbase的表格包括增加/计数功能。&lt;/p&gt;
-&lt;h3 id=&quot;限制&quot;&gt;限制&lt;/h3&gt;
-&lt;p&gt;         Hive目前不支持更新操作。另外，由于hive在hadoop上运行批量操作，它需要花费很长的时间，通常是几分钟到几个小时才可以获取到查询的结果。Hive必须提供预先定义好的schema将文件和目录映射到列，并且Hive与ACID不兼容。
-        HBase查询是通过特定的语言来编写的，这种语言需要重新学习。类SQL的功能可以通过Apache Phonenix实现，但这是以必须提供schema为代价的。另外，Hbase也并不是兼容所有的ACID特性，虽然它支持某些特性。最后但不是最重要的–为了运行Hbase，Zookeeper是必须的，zookeeper是一个用来进行分布式协调的服务，这些服务包括配置服务，维护元信息和命名空间服务。&lt;/p&gt;
-&lt;h3 id=&quot;应用场景&quot;&gt;应用场景&lt;/h3&gt;
-&lt;p&gt;        Hive适合用来对一段时间内的数据进行分析查询，例如，用来计算趋势或者网站的日志。Hive不应该用来进行实时的查询。因为它需要很长时间才可以返回结果。
-        Hbase非常适合用来进行大数据的实时查询。Facebook用Hbase进行消息和实时的分析。它也可以用来统计Facebook的连接数。&lt;/p&gt;
-&lt;h3 id=&quot;总结&quot;&gt;总结&lt;/h3&gt;
-&lt;p&gt;        Hive和Hbase是两种基于Hadoop的不同技术–Hive是一种类SQL的引擎，并且运行MapReduce任务，Hbase是一种在Hadoop之上的NoSQL 的Key/vale数据库。当然，这两种工具是可以同时使用的。就像用Google来搜索，用FaceBook进行社交一样，Hive可以用来进行统计查询，HBase可以用来进行实时查询，数据也可以从Hive写到Hbase，设置再从Hbase写回Hive。&lt;/p&gt;
+&lt;h3 id=&quot;二线性代数&quot;&gt;二、线性代数&lt;/h3&gt;
+&lt;h4 id=&quot;21-标量向量矩阵张量正定矩阵&quot;&gt;2.1 标量，向量，矩阵，张量，正定矩阵&lt;/h4&gt;
+&lt;p&gt;&lt;strong&gt;标量&lt;/strong&gt;(scalar)&lt;/p&gt;
+
+&lt;p&gt;一个标量就是一个单独的数，一般用小写的的变量名称表示。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;向量&lt;/strong&gt;(vector)      一个向量就是一列数，这些数是有序排列的。用过次序中的索引，我们可以确定每个单独的数。通常会赋予向量粗体的小写名称。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;矩阵&lt;/strong&gt;  (Matrix)&lt;/p&gt;
+
+&lt;p&gt;矩阵是二维数组，其中的每一个元素被两个索引而非一个所确定。我们通常会赋予矩阵粗体的大写变量名称，比如A。 如果一个实数矩阵高度为m，宽度为n，那么我们说&lt;strong&gt;&lt;img src=&quot;https://www.zhihu.com/equation?tex=A%5Cepsilon+R%5E%7Bm%5Ctimes+n%7D+&quot; alt=&quot;[公式]&quot; /&gt;。&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;张量&lt;/strong&gt;（tensor）&lt;/p&gt;
+
+&lt;p&gt;几何代数中定义的张量是基于向量和矩阵的推广,通俗一点理解的话,我们可以将标量视为零阶张量,矢量视为一阶张量，那么矩阵就是二阶张量。&lt;/p&gt;
+
+&lt;p&gt;例如，可以将任意一张彩色图片表示成一个三阶张量，三个维度分别是图片的高度、宽度和色彩数据。&lt;/p&gt;
+
+&lt;p&gt;张量在深度学习中是一个很重要的概念，因为它是一个深度学习框架中的一个核心组件，后续的所有运算和优化算法几乎都是基于张量进行的。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;正定矩阵&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;22-范数&quot;&gt;2.2 范数&lt;/h4&gt;
+
+&lt;p&gt;有时我们需要衡量一个向量的大小。在机器学习中，我们经常使用被称为范数(norm) 的函数衡量矩阵大小。Lp 范数如下：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://www.zhihu.com/equation?tex=%5Cleft%7C+%5Cleft%7C+x+%5Cright%7C+%5Cright%7C+_%7Bp%7D%5E%7B%7D+%3D%5Cleft%28+%5Csum_%7Bi%7D%5E%7B%7D%7B%5Cleft%7C+x_%7Bi%7D+%5Cright%7C+%5E%7Bp%7D+%7D+%5Cright%29+_%7B%7D%5E%7B%5Cfrac%7B1%7D%7Bp%7D+%7D+&quot; alt=&quot;[公式]&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;所以：&lt;/p&gt;
+
+&lt;p&gt;L1范数&lt;img src=&quot;https://www.zhihu.com/equation?tex=%5Cleft%7C+%5Cleft%7C+x+%5Cright%7C+%5Cright%7C+&quot; alt=&quot;[公式]&quot; /&gt;：为x向量各个元素绝对值之和；&lt;/p&gt;
+
+&lt;p&gt;L2范数&lt;img src=&quot;https://www.zhihu.com/equation?tex=%5Cleft%7C+%5Cleft%7C+x+%5Cright%7C+%5Cright%7C+_%7B2%7D+&quot; alt=&quot;[公式]&quot; /&gt;：为x向量各个元素平方和的开方。&lt;/p&gt;
+
+&lt;p&gt;这里先说明一下，在机器学习中，L1范数和L2范数很常见，主要用在损失函数中起到一个限制模型参数复杂度的作用，至于为什么要限制模型的复杂度，这又涉及到机器学习中常见的过拟合问题。&lt;/p&gt;
+
+&lt;h4 id=&quot;23-特征分解&quot;&gt;2.3 特征分解&lt;/h4&gt;
+
+&lt;p&gt;首先回顾下特征值和特征向量的定义如下：&lt;/p&gt;
+
+&lt;p&gt;​													Aν=λν&lt;/p&gt;
+
+&lt;p&gt;其中  A 是一个  $n\times n$  矩阵， ν 是一个 $n$  维向量，则 λ 是矩阵 A 的一个特征值，而 ν 是矩阵 A 的特征值 λ 所对应的特征向量。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;矩阵特征值是对特征向量进行伸缩和旋转程度的度量&lt;/strong&gt;，实数是只进行伸缩，虚数是只进行旋转，复数就是有伸缩有旋转。&lt;/p&gt;
+
+&lt;p&gt;一个&lt;strong&gt;实对称矩阵&lt;/strong&gt;的一组特征向量是一组正交向量。特征值分解是将一个矩阵分解成下面的形式：
+&lt;script type=&quot;math/tex&quot;&gt;A=QΣQ−1&lt;/script&gt;
+其中Q是这个矩阵A的特征向量组成的矩阵，Σ是一个对角阵，每一个对角线上的元素就是一个特征值。我这里引用了一些参考文献中的内容来说明一下。首先，要明确的是，一个矩阵其实就是一个线性变换，因为一个矩阵乘以一个向量后得到的向量，其实就相当于将这个向量进行了线性变换。比如说下面的一个矩阵：
+&lt;script type=&quot;math/tex&quot;&gt;% &lt;![CDATA[
+M = \left[ \matrix{  3 &amp; 0  \\  0 &amp; 1 } \right] %]]&gt;&lt;/script&gt;
+它其实对应的线性变换是下面的形式：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/201101192226326073.png&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;因为这个矩阵M乘以一个向量(x,y)的结果是： 
+&lt;script type=&quot;math/tex&quot;&gt;% &lt;![CDATA[
+\left[\matrix{3 &amp; 0 \\ 0 &amp; 1}\right]\left[\matrix{x \\ y}\right] = \left[\matrix{3x \\ y}\right] %]]&gt;&lt;/script&gt;
+它所描述的变换是下面的样子：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/201101192226333107.png&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;这其实是在平面上对一个轴进行的拉伸变换（如蓝色的箭头所示），在图中，蓝色的箭头是一个最&lt;strong&gt;主要的&lt;/strong&gt;变化方向（变化方向可能有不止一个），&lt;strong&gt;如果我们想要描述好一个变换，那我们就描述好这个变换主要的变化方向就好了&lt;/strong&gt;。反过头来看看之前特征值分解的式子，分解得到的Σ矩阵是一个对角阵，里面的特征值是由大到小排列的，&lt;strong&gt;这些特征值所对应的特征向量就是描述这个矩阵变化方向（从主要的变化到次要的变化排列）&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;当矩阵是高维的情况下，那么这个矩阵就是高维空间下的一个线性变换，这个线性变化可能没法通过图片来表示，但是可以想象，这个变换也同样有很多的变换方向，我们通过特征值分解得到的前N个特征向量，那么就对应了这个矩阵最主要的N个变化方向。我们利用这前N个变化方向，就可以近似这个矩阵（变换）。也就是之前说的：&lt;strong&gt;提取这个矩阵最重要的特征。&lt;/strong&gt;总结一下，特征值分解可以得到特征值与特征向量，特征值表示的是这个特征到底有多重要，而特征向量表示这个特征是什么，可以将每一个特征向量理解为一个线性的子空间，我们可以利用这些线性的子空间干很多的事情。不过，&lt;strong&gt;特征值分解也有很多的局限，比如说变换的矩阵必须是方阵。&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;24--奇异值分解&quot;&gt;2.4  奇异值分解&lt;/h4&gt;
+
+&lt;p&gt;特征值分解是一个提取矩阵特征很不错的方法，但是它只是对方阵而言的.&lt;strong&gt;我们怎样才能描述这样普通的矩阵呢的重要特征呢？&lt;/strong&gt;奇异值分解可以用来干这个事情，&lt;strong&gt;奇异值分解是一个能适用于任意的矩阵的一种分解的方法&lt;/strong&gt;：&lt;img src=&quot;/img/201101192226341537.png&quot; alt=&quot;img&quot; style=&quot;zoom:80%;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;假设A是一个M&lt;em&gt;N的矩阵，那么得到的U是一个M&lt;/em&gt;M的方阵（里面的向量是正交的，U里面的向量称为左奇异向量），Σ是一个M*N的矩阵（除了对角线的元素都是0，对角线上的元素称为奇异值），V’(V的转置)是一个N * N的矩阵，里面的向量也是正交的，V里面的向量称为右奇异向量）&lt;/p&gt;
+
+&lt;p&gt;那么奇异值和特征值是怎么对应起来的呢？首先，我们将一个矩阵A的转置 * A，将会得到一个方阵，我们用这个方阵求特征值可以得到：
+&lt;script type=&quot;math/tex&quot;&gt;(A^TA)v_i = \lambda_iv_i&lt;/script&gt;
+这里得到的v，就是我们上面的右奇异向量。此外我们还可以得到：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/image-20191025092724905.png&quot; alt=&quot;image-20191025092724905&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;这里的σ就是上面说的奇异值，u就是上面说的左奇异向量。奇异值σ跟特征值类似，在矩阵Σ中也是从大到小排列，而且σ的减少特别的快，&lt;strong&gt;在很多情况下，前10%甚至1%的奇异值的和就占了全部的奇异值之和的99%以上了&lt;/strong&gt;。也就是说，我们也可以用前r大的奇异值来近似描述矩阵，这里定义一下&lt;strong&gt;部分奇异值分解&lt;/strong&gt;：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/image-20191025092756867.png&quot; alt=&quot;image-20191025092756867&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;r是一个远小于m、n的数，这样矩阵的乘法看起来像是下面的样子：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/201101192226359717.png&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;右边的三个矩阵相乘的结果将会是一个接近于A的矩阵，在这儿，r越接近于n，则相乘的结果越接近于A。而这三个矩阵的面积之和（在存储观点来说，矩阵面积越小，存储量就越小）要远远小于原始的矩阵A，我们如果想要&lt;strong&gt;压缩空间来表示原矩阵A&lt;/strong&gt;，我们存下这里的三个矩阵：U、Σ、V就好了。&lt;/p&gt;
+
+&lt;p&gt;参考:&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;在主成分分析,稀疏表示等算法会见到&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;25--moore-penrose伪逆&quot;&gt;&lt;strong&gt;2.5  Moore-Penrose伪逆&lt;/strong&gt;&lt;/h4&gt;
+
+&lt;p&gt;对于非方矩阵而言，其逆矩阵没有定义。假设在下面问题中，我们想通过矩阵A的左逆B来求解线性方程：
+&lt;script type=&quot;math/tex&quot;&gt;Ax = y&lt;/script&gt;
+等式两边同时左乘左逆B后，得到：
+&lt;script type=&quot;math/tex&quot;&gt;x = By&lt;/script&gt;
+是否存在唯一的映射将A映射到B取决于问题的形式。&lt;/p&gt;
+
+&lt;p&gt;如果矩阵A的行数大于列数，那么上述方程可能没有解；如果矩阵A的行数小于列数，那么上述方程可能有多个解。&lt;/p&gt;
+
+&lt;p&gt;Moore-Penrose伪逆使我们能够解决这种情况，矩阵A的伪逆定义为：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-1581c66947da5c30172f4ef80dd0b70f_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;但是计算伪逆的实际算法没有基于这个式子，而是使用下面的公式：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-2845b623dc537e3bae0db22c4938e9c1_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;其中，矩阵U，D 和V 是矩阵A奇异值分解后得到的矩阵。对角矩阵D 的伪逆D+ 是其非零元素取倒之后再转置得到的。&lt;/p&gt;
+
+&lt;h4 id=&quot;26--几种常见的距离&quot;&gt;2.6  几种常见的距离&lt;/h4&gt;
+
+&lt;p&gt;在机器学习里，我们的运算一般都是基于向量的，一条用户具有100个特征，那么他对应的就是一个100维的向量，通过计算两个用户对应向量之间的距离值大小，有时候能反映出这两个用户的相似程度。这在后面的KNN算法和K-means算法中很明显。&lt;/p&gt;
+
+&lt;p&gt;设有两个n维变量$A = [x_{12},X_{12},\cdots,x_{1n}]$和$B = [x_{21},x_{22},\cdots,x_{2n}]$，则一些常用的距离公式定义如下：&lt;/p&gt;
+
+&lt;h5 id=&quot;1曼哈顿距离&quot;&gt;&lt;strong&gt;1、曼哈顿距离&lt;/strong&gt;&lt;/h5&gt;
+
+&lt;p&gt;曼哈顿距离也称为城市街区距离，数学定义如下：
+&lt;script type=&quot;math/tex&quot;&gt;d_{12} = \sum_{k=1}^n|x_{1k}-x_{2k}|&lt;/script&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;numpy&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;vector1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;vector2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;nb&quot;&gt;sum&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;abs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vector1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vector2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h5 id=&quot;2欧氏距离&quot;&gt;&lt;strong&gt;2、欧氏距离&lt;/strong&gt;&lt;/h5&gt;
+
+&lt;p&gt;欧氏距离其实就是L2范数，数学定义如下：
+&lt;script type=&quot;math/tex&quot;&gt;d_{12} = \sqrt{\sum_{k=1}^n(x_{1k}-x_{2k})^2}&lt;/script&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;numpy&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;vector1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;vector2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sqrt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;((&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vector1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vector2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vector1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vector2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h5 id=&quot;3闵可夫斯基距离&quot;&gt;&lt;strong&gt;3、闵可夫斯基距离&lt;/strong&gt;&lt;/h5&gt;
+
+&lt;p&gt;从严格意义上讲，闵可夫斯基距离不是一种距离，而是一组距离的定义：
+&lt;script type=&quot;math/tex&quot;&gt;d_{12} = \sqrt[p]{\sum_{k=1}^n(x_{1k}-x_{2k})^p}&lt;/script&gt;
+实际上，当p=1时，就是曼哈顿距离；当p=2时，就是欧式距离。&lt;/p&gt;
+
+&lt;h5 id=&quot;4切比雪夫距离&quot;&gt;&lt;strong&gt;4、切比雪夫距离&lt;/strong&gt;&lt;/h5&gt;
+
+&lt;script type=&quot;math/tex; mode=display&quot;&gt;d_{12} = max(|x_{1k}-x_{2k}|)&lt;/script&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;numpy&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;vector1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;vector2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;sqrt&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;abs&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vector1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vector2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nb&quot;&gt;max&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h5 id=&quot;5夹角余弦&quot;&gt;&lt;strong&gt;5、夹角余弦&lt;/strong&gt;&lt;/h5&gt;
+
+&lt;p&gt;夹角余弦的取值范围为[-1,1]，可以用来衡量两个向量方向的差异；夹角余弦越大，表示两个向量的夹角越小；当两个向量的方向重合时，夹角余弦取最大值1；当两个向量的方向完全相反时，夹角余弦取最小值-1。&lt;/p&gt;
+
+&lt;p&gt;机器学习中用这一概念来衡量样本向量之间的差异，其数学表达式如下：
+&lt;script type=&quot;math/tex&quot;&gt;cos\theta = \frac{AB}{|A||B|} = \frac{\sum_{k=1}^{n}x_{1k}x_{2k}}{\sqrt{\sum_{k=1}^nx_{1k}^2}\sqrt{\sum_{k=1}^{n}x^2_{2k}}}&lt;/script&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;numpy&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;vector1&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;3&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;vector2&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;5&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dot&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vector1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vector2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;/&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;linalg&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;norm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vector1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;linalg&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;norm&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;vector2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;))&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h5 id=&quot;6汉明距离&quot;&gt;6、汉明距离&lt;/h5&gt;
+
+&lt;p&gt;汉明距离定义的是两个字符串中不相同位数的数目。&lt;/p&gt;
+
+&lt;p&gt;例如：字符串‘1111’与‘1001’之间的汉明距离为2。&lt;/p&gt;
+
+&lt;p&gt;信息编码中一般应使得编码间的汉明距离尽可能的小。&lt;/p&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;numpy&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;matV&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;smstr&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;nonzero&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;matV&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;]&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;matV&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;smstr&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h5 id=&quot;7杰卡德相似系数&quot;&gt;&lt;strong&gt;7、杰卡德相似系数&lt;/strong&gt;&lt;/h5&gt;
+
+&lt;p&gt;两个集合A和B的交集元素在A和B的并集中所占的比例称为两个集合的杰卡德相似系数，用符号J(A,B)表示，数学表达式为：
+&lt;script type=&quot;math/tex&quot;&gt;J(A,B) = \frac{|A\and B|}{|A \or B|}&lt;/script&gt;
+杰卡德相似系数是衡量两个集合的相似度的一种指标。一般可以将其用在衡量样本的相似度上。&lt;/p&gt;
+
+&lt;h5 id=&quot;8杰卡德距离&quot;&gt;&lt;strong&gt;8、杰卡德距离&lt;/strong&gt;&lt;/h5&gt;
+
+&lt;p&gt;与杰卡德相似系数相反的概念是杰卡德距离，其定义式为：
+&lt;script type=&quot;math/tex&quot;&gt;J_\sigma = 1-J(A,B)&lt;/script&gt;&lt;/p&gt;
+
+&lt;div class=&quot;language-python highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;kn&quot;&gt;from&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;numpy&lt;/span&gt; &lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;*&lt;/span&gt;
+&lt;span class=&quot;kn&quot;&gt;import&lt;/span&gt; &lt;span class=&quot;nn&quot;&gt;scipy.spatial.distance&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;as&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dist&lt;/span&gt;
+&lt;span class=&quot;n&quot;&gt;matV&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;mat&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;([&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;],[&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;0&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;1&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;])&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;print&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;dist&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;pdist&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;matV&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;'jaccard'&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h3 id=&quot;三概率&quot;&gt;三、概率&lt;/h3&gt;
+
+&lt;h4 id=&quot;31--为什么使用概率&quot;&gt;3.1  为什么使用概率?&lt;/h4&gt;
+
+&lt;p&gt;概率论是用于表示不确定性陈述的数学框架,即它是对事物不确定性的度量。&lt;/p&gt;
+
+&lt;p&gt;在人工智能领域，我们主要以两种方式来使用概率论。首先，概率法则告诉我们AI系统应该如何推理，所以我们设计一些算法来计算或者近似由概率论导出的表达式。其次，我们可以用概率和统计从理论上分析我们提出的AI系统的行为。&lt;/p&gt;
+
+&lt;p&gt;计算机科学的许多分支处理的对象都是完全确定的实体，但机器学习却大量使用概率论。实际上如果你了解机器学习的工作原理你就会觉得这个很正常。因为机器学习大部分时候处理的都是不确定量或随机量。&lt;/p&gt;
+
+&lt;h4 id=&quot;32--随机变量&quot;&gt;3.2  随机变量&lt;/h4&gt;
+
+&lt;p&gt;随机变量可以随机地取不同值的变量。我们通常用小写字母来表示随机变量本身，而用带数字下标的小写字母来表示随机变量能够取到的值。例如，$x_1$和  $x_2$ 都是随机变量X可能的取值。&lt;/p&gt;
+
+&lt;p&gt;对于向量值变量，我们会将随机变量写成X，它的一个值为$x$。就其本身而言，一个随机变量只是对可能的状态的描述；它必须伴随着一个概率分布来指定每个状态的可能性。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;随机变量可以是离散的或者连续的&lt;/strong&gt;。&lt;/p&gt;
+
+&lt;h4 id=&quot;33--概率分布&quot;&gt;3.3  概率分布&lt;/h4&gt;
+
+&lt;p&gt;给定某随机变量的取值范围，概率分布就是导致该随机事件出现的可能性。&lt;/p&gt;
+
+&lt;p&gt;从机器学习的角度来看，概率分布就是符合随机变量取值范围的某个对象属于某个类别或服从某种趋势的可能性。&lt;/p&gt;
+
+&lt;h4 id=&quot;34---条件概率&quot;&gt;3.4   条件概率&lt;/h4&gt;
+
+&lt;p&gt;很多情况下，我们感兴趣的是某个事件在给定其它事件发生时出现的概率，这种概率叫条件概率。&lt;/p&gt;
+
+&lt;p&gt;我们将给定$X = x$ 时$Y = y$ 发生的概率记为$P(Y = y|X = x)$，这个概率可以通过下面的公式来计算：
+&lt;script type=&quot;math/tex&quot;&gt;P(Y = y|X = x) = \frac{P(Y = y,X = x)}{P(X = x)}&lt;/script&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;35--贝叶斯公式&quot;&gt;3.5  贝叶斯公式&lt;/h4&gt;
+
+&lt;p&gt;先看看什么是“先验概率”和“后验概率”，以一个例子来说明：&lt;/p&gt;
+
+&lt;p&gt;假设某种病在人群中的发病率是0.001，即1000人中大概会有1个人得病，则有： &lt;strong&gt;P(患病) = 0.1%&lt;/strong&gt;；即：在没有做检验之前，我们预计的患病率为&lt;strong&gt;P(患病)=0.1%&lt;/strong&gt;，这个就叫作&lt;strong&gt;“先验概率”&lt;/strong&gt;。&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;再假设现在有一种该病的检测方法，其检测的准确率为&lt;strong&gt;95%&lt;/strong&gt;；即：如果真的得了这种病，该检测法有&lt;strong&gt;95%&lt;/strong&gt;的概率会检测出阳性，但也有&lt;strong&gt;5%&lt;/strong&gt;的概率检测出阴性；或者反过来说，但如果没有得病，采用该方法有&lt;strong&gt;95%&lt;/strong&gt;的概率检测出阴性，但也有&lt;strong&gt;5%&lt;/strong&gt;的概率检测为阳性。用概率条件概率表示即为：**P(显示阳性&lt;/td&gt;
+      &lt;td&gt;患病)=95%**&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;现在我们想知道的是：在做完检测显示为阳性后，某人的患病率**P(患病&lt;/td&gt;
+      &lt;td&gt;显示阳性)&lt;strong&gt;，这个其实就称为&lt;/strong&gt;“后验概率”。**&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;而这个叫贝叶斯的人其实就是为我们提供了一种可以&lt;strong&gt;利用先验概率计算后验概率&lt;/strong&gt;的方法，我们将其称为&lt;strong&gt;“贝叶斯公式”。&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;这里先了解&lt;strong&gt;条件概率公式&lt;/strong&gt;：
+&lt;script type=&quot;math/tex&quot;&gt;P(B|A) = \frac{P(AB)}{P(A)},P(A|B)=\frac{P(AB)}{P(B)}&lt;/script&gt;
+由条件概率可以得到乘法公式:
+&lt;script type=&quot;math/tex&quot;&gt;P(AB) = P(B|A)P(A) = P(A|B)P(B)&lt;/script&gt;
+将条件概率公式和乘法公式结合得到:
+&lt;script type=&quot;math/tex&quot;&gt;P(B|A)=\frac{P(A|B)*P(B)}{P(A)}&lt;/script&gt;
+再由全概率公式:
+&lt;script type=&quot;math/tex&quot;&gt;P(A) = 	\sum_{i=1}^NP(A|B_i)P(B_i)&lt;/script&gt;
+代入可以得到贝叶斯公式:
+&lt;script type=&quot;math/tex&quot;&gt;P(B_i|A) = \frac{P(A|B_i)P(B_i)}{\sum_{i=1}^NP(A|B_i)P(B_i)}&lt;/script&gt;
+在这个例子里就是:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-e3e7a3aa9fb146d662591612b3cac465_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;贝叶斯公式贯穿了机器学习中随机问题分析的全过程。从文本分类到概率图模型，其基本分类都是贝叶斯公式。&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;36--期望&quot;&gt;3.6  期望&lt;/h4&gt;
+
+&lt;p&gt;在概率论和统计学中，数学期望是试验中每次可能结果的概率乘以其结果的总和。它是最基本的数学特征之一，反映随机变量平均值的大小。&lt;/p&gt;
+
+&lt;p&gt;假设X是一个离散随机变量，其可能的取值有：${x_1,x_2,\cdots,x_n}$，各个取值对应的概率取值为：$P(x_k),k=1,2,\cdots,n$    ,  则其数学期望被定义为：
+&lt;script type=&quot;math/tex&quot;&gt;E(X) = \sum_{k=1}^nP(x_k)&lt;/script&gt;
+假设X是一个连续型随机变量,其概率密度函数为$P(x)$则其数学期望被定义为:
+&lt;script type=&quot;math/tex&quot;&gt;E(x) = \int_{-\infty}^{+\infty}xf(x)dx&lt;/script&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;37--方差&quot;&gt;3.7  方差&lt;/h4&gt;
+
+&lt;p&gt;概率中，方差用来衡量随机变量与其数学期望之间的偏离程度；统计中的方差为样本方差，是各个样本数据分别与其平均数之差的平方和的平均数。数学表达式如下：
+&lt;script type=&quot;math/tex&quot;&gt;Var(x) = E\{[x-E(x)]^2\} = E(x^2)-[E(x)]^2&lt;/script&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;38--协方差&quot;&gt;3.8  协方差&lt;/h4&gt;
+
+&lt;p&gt;在概率论和统计学中，协方差被用于衡量两个随机变量X和Y之间的总体误差。数学定义式为：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/image-20191025112347156.png&quot; alt=&quot;image-20191025112347156&quot; /&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;39--常见分布函数&quot;&gt;3.9  常见分布函数&lt;/h4&gt;
+
+&lt;h5 id=&quot;0-1分布&quot;&gt;0-1分布&lt;/h5&gt;
+
+&lt;p&gt;0-1分布是单个二值型离散随机变量的分布，其概率分布函数为：
+&lt;script type=&quot;math/tex&quot;&gt;P(X=1)=p  \quad    P(X = 0) = 1-p&lt;/script&gt;
+任何一个只有两种结果的随机现象都服从0-1分布;比如掷硬币,新生儿是男还是女，检查产品是否合格&lt;/p&gt;
+
+&lt;h5 id=&quot;几何分布&quot;&gt;几何分布&lt;/h5&gt;
+
+&lt;p&gt;几何分布是离散型概率分布，其定义为：在n次伯努利试验中，试验k次才得到第一次成功的机率。即：前k-1次皆失败，第k次成功的概率。其概率分布函数为：
+&lt;script type=&quot;math/tex&quot;&gt;P(X = k)=(1-p)^{k-1}p&lt;/script&gt;
+性质:
+&lt;script type=&quot;math/tex&quot;&gt;E(X) = \frac{1}{p} \quad Var(X)=\frac{1-p}{p^2}&lt;/script&gt;&lt;/p&gt;
+
+&lt;h5 id=&quot;二项分布&quot;&gt;二项分布&lt;/h5&gt;
+
+&lt;p&gt;二项分布即重复n次伯努利试验，各次试验之间都相互独立，并且每次试验中只有两种可能的结果，而且这两种结果发生与否相互对立。如果每次试验时，事件发生的概率为p，不发生的概率为1-p，则n次重复独立试验中发生k次的概率为：
+&lt;script type=&quot;math/tex&quot;&gt;P(X = k)=C_n^kp^k(1-p)^{n-k}&lt;/script&gt;
+性质:
+&lt;script type=&quot;math/tex&quot;&gt;E(X) = np \quad Var(X) = np(1-p)&lt;/script&gt;&lt;/p&gt;
+
+&lt;h5 id=&quot;泊松分布&quot;&gt;泊松分布&lt;/h5&gt;
+
+&lt;p&gt;日常生活中，大量事件是有固定频率的，比如：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;某医院平均每小时出生3个婴儿&lt;/li&gt;
+  &lt;li&gt;某网站平均每分钟有2次访问&lt;/li&gt;
+  &lt;li&gt;某超市平均每小时销售4包奶粉&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;它们的特点就是，我们可以预估这些事件的总数，但是没法知道具体的发生时间。已知平均每小时出生3个婴儿，请问下一个小时，会出生几个？有可能一下子出生6个，也有可能一个都不出生，这是我们没法知道的。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;泊松分布就是描述某段时间内，事件具体的发生概率。&lt;/strong&gt;其概率函数为：
+&lt;script type=&quot;math/tex&quot;&gt;P(N(t)=n) = \frac{(\lambda t)^ne^{-\lambda t}}{n!}&lt;/script&gt;
+其中：&lt;/p&gt;
+
+&lt;p&gt;P表示概率，N表示某种函数关系，t表示时间，n表示数量，1小时内出生3个婴儿的概率，就表示为 P(N(1) = 3) ；$\lambda$ 表示事件的频率.&lt;/p&gt;
+
+&lt;p&gt;还是以上面医院平均每小时出生3个婴儿为例，则$\lambda$ = 3;&lt;/p&gt;
+
+&lt;p&gt;那么,接下来两个小时,一个婴儿都不出生的概率可以求得为:
+&lt;script type=&quot;math/tex&quot;&gt;P(N(2)=0) = \frac{(3*2)^0*e^{-3.2}}{0!} \approx 0.0025&lt;/script&gt;
+同理，我们可以求接下来一个小时，至少出生两个婴儿的概率：
+&lt;script type=&quot;math/tex&quot;&gt;P(N(1)\geq 2) =1- P(N(1)=0)-P(N(1)=1) \approx 0.8&lt;/script&gt;&lt;/p&gt;
+
+&lt;h5 id=&quot;指数分布&quot;&gt;指数分布&lt;/h5&gt;
+
+&lt;p&gt;指数分布是事件的时间间隔的概率，它的一个重要特征是无记忆性。例如：如果某一元件的寿命的寿命为T，已知元件使用了t小时，它总共使用至少t+s小时的条件概率，与从开始使用时算起它使用至少s小时的概率相等。下面这些都属于指数分布：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;婴儿出生的时间间隔&lt;/li&gt;
+  &lt;li&gt;网站访问的时间间隔&lt;/li&gt;
+  &lt;li&gt;奶粉销售的时间间隔&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;指数分布的公式可以从泊松分布推断出来。如果下一个婴儿要间隔时间t，就等同于t之内没有任何婴儿出生，即：
+&lt;script type=&quot;math/tex&quot;&gt;P(X\geq	t) = P(N(t)=0) = \frac{(\lambda t)^0e^{-\lambda t}}{0!}=e^{-\lambda t}&lt;/script&gt;
+则:
+&lt;script type=&quot;math/tex&quot;&gt;P(X\leq t) = 1-P(X\geq t) = 1-e^{-\lambda t}&lt;/script&gt;
+如:接下来15分钟,会有婴儿出生的概率为:
+&lt;script type=&quot;math/tex&quot;&gt;P(X\leq \frac{1}{4}) = 1-e^{-3 \frac{1}{4}} \approx 0.53&lt;/script&gt;
+指数分布的图像如下：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-a58c37c481e032bbb53ff17113754ef6_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;【注】上面的指数分布和泊松分布参考了阮一峰大牛的博客：“泊松分布和指数分布：10分钟教程”，在此说明，也对其表示感谢！&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h5 id=&quot;高斯分布&quot;&gt;高斯分布&lt;/h5&gt;
+
+&lt;p&gt;高斯分布又叫&lt;strong&gt;正态分布&lt;/strong&gt;，其曲线呈钟型，两头低，中间高，左右对称因其曲线呈钟形，如下图所示：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-a0811acc8ab121a3ad8f2e37ff6c37cc_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;若随机变量X服从一个数学期望为$\mu$，方差为$\sigma$的正态分布，则我们将其记为：$N(\mu,\sigma^2)$。其期望值$\mu$决定了正态分布的位置，其标准差$\sigma$ (方差的开方）决定了正态分布的幅度。&lt;/p&gt;
+
+&lt;p&gt;概率密度函数为:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://wikimedia.org/api/rest_v1/media/math/render/svg/a4145febbfa700e8711b7bc87fa1dbf9ec37f906&quot; alt=&quot;f(/img/a4145febbfa700e8711b7bc87fa1dbf9ec37f906.png) = {1 \over \sigma\sqrt{2\pi} }\,e^{- }&quot; /&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;310--lagrange-乘子法&quot;&gt;3.10  Lagrange 乘子法&lt;/h4&gt;
+
+&lt;p&gt;对于一般的求极值问题我们都知道，求导等于0就可以了。但是如果我们不但要求极值，还要求一个满足一定约束条件的极值，那么此时就可以构造Lagrange函数，其实就是&lt;strong&gt;把约束项添加到原函数上，然后对构造的新函数求导&lt;/strong&gt;。&lt;/p&gt;
+
+&lt;p&gt;对于一个要求极值的函数$f(x,y)$，图上的蓝圈就是这个函数的等高图，就是说 $f(x,y) = c_1,c_2,\cdots,c_n$ 分别代表不同的数值(每个值代表一圈，等高图)，我要找到一组$(x,y)$，使它的$c_i$值越大越好，但是这点必须满足约束条件$g(x,y)$（在黄线上）。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-806fd987177e32a33e698caa74d69942_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;也就是说 $f(x,y)$ 和$g(x,y)$相切,或者说它们的梯度$\nabla f$ 和$\nabla g$ 平行，因此它们的梯度（偏导）成倍数关系；那我么就假设为 $\lambda$ 倍，然后把约束条件加到原函数后再对它求导&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://wikimedia.org/api/rest_v1/media/math/render/svg/f259cf90f0f7b7b4714e64dbd1b82071757fd4d9&quot; alt=&quot;{\displaystyle {\mathcal {L}}(/img/f259cf90f0f7b7b4714e64dbd1b82071757fd4d9-20191025134304061 )=f(x,y)+\lambda \cdot {\Big (}g(x,y)-c{\Big )}}&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;更一般地，对含&lt;em&gt;n&lt;/em&gt;个变量和&lt;em&gt;k&lt;/em&gt;个约束的情况，有：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;https://wikimedia.org/api/rest_v1/media/math/render/svg/8e0d0b20a1c96d8b46361916d2b2e5f04aa2d64a&quot; alt=&quot;{\displaystyle {\mathcal {L}}\left(/img/8e0d0b20a1c96d8b46361916d2b2e5f04aa2d64a-20191025134348277)=f\left(x_{1},\ldots ,x_{n}\right)-\sum \limits _{i=1}^{k}{\lambda _{i}g_{i}\left(x_{1},\ldots ,x_{n}\right)},}&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;在&lt;strong&gt;支持向量机模型（SVM）&lt;/strong&gt;的推导中一步很关键的就是利用拉格朗日对偶性将原问题转化为对偶问题。&lt;/p&gt;
+
+&lt;h4 id=&quot;311---最大似然估计&quot;&gt;3.11   最大似然估计&lt;/h4&gt;
+
+&lt;p&gt;极大似然估计，通俗理解来说，&lt;strong&gt;就是利用已知的样本结果信息，反推最具有可能（最大概率）导致这些样本结果出现的模型参数值！&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;换句话说，极大似然估计提供了一种给定观察数据来评估模型参数的方法，即：“模型已定，参数未知”。&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;极大似然估计中采样需满足一个重要的假设，就是所有的采样都是独立同分布的。&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;首先看一下似然函数$p(x&lt;/td&gt;
+      &lt;td&gt;\theta)$  的理解:&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;对于这个函数：$p(x&lt;/td&gt;
+      &lt;td&gt;\theta)$   输入有两个：x表示某一个具体的数据；$\theta$ 表示模型的参数&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;如果  $\theta$  是已知确定的， x是变量，这个函数叫做概率函数(probability function)，它描述对于不同的样本点  x，其出现概率是多少。&lt;/p&gt;
+
+&lt;p&gt;如果  $\theta$  是已知确定的, $x$是变量，这个函数叫做似然函数(likelihood function), 它描述对于不同的模型参数，出现 $x$ 这个样本点的概率是多少。&lt;/p&gt;
+
+&lt;p&gt;这有点像“一菜两吃”的意思。其实这样的形式我们以前也不是没遇到过。例如，$f(x,y)=x^y$ ,即x的y次方。如果x是已知确定的(例如x=2)，这就是$f(y) = 2^y$,这是指数函数。 如果y是已知确定的(例如y=2)，这就是 $f(x) = x^2$ , 这是二次函数。同一个数学形式，从不同的变量角度观察，可以有不同的名字。&lt;/p&gt;
+
+&lt;p&gt;举个例子，假如有一个罐子，里面有黑白两种颜色的球，数目多少不知，两种颜色的比例也不知。我 们想知道罐中白球和黑球的比例，但我们不能把罐中的球全部拿出来数。现在我们可以每次任意从已经摇匀的罐中拿一个球出来，记录球的颜色，然后把拿出来的球 再放回罐中。这个过程可以重复，我们可以用记录的球的颜色来估计罐中黑白球的比例。假如在前面的一百次重复记录中，有七十次是白球，请问罐中白球所占的比例最有可能是多少？&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;很多人马上就有答案了：70%。而其后的理论支撑是什么呢？&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;我们假设罐中白球的比例是p，那么黑球的比例就是1-p。因为每抽一个球出来，在记录颜色之后，我们把抽出的球放回了罐中并摇匀，&lt;strong&gt;所以每次抽出来的球的颜 色服从同一独立分布。&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;这里我们把一次抽出来球的颜色称为一次抽样。题目中在一百次抽样中，七十次是白球的,三十次为黑球事件的概率是P(样本结果&lt;/td&gt;
+      &lt;td&gt;Model)。&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;如果第一次抽象的结果记为x1,第二次抽样的结果记为x2….那么样本结果为(x1,x2…..,x100)。这样，我们可以得到如下表达式：&lt;/p&gt;
+
+&lt;p&gt;P(样本结果|Model)&lt;/p&gt;
+
+&lt;p&gt;　　= P(x1,x2,…,x100|Model)&lt;/p&gt;
+
+&lt;p&gt;　　= P(x1|Mel)P(x2|M)…P(x100|M)&lt;/p&gt;
+
+&lt;p&gt;　　= p^70(1-p)^30.&lt;/p&gt;
+
+&lt;p&gt;好的，我们已经有了观察样本结果出现的概率表达式了。那么我们要求的模型的参数，也就是求的式中的p。&lt;/p&gt;
+
+&lt;p&gt;那么我们怎么来求这个p呢？&lt;/p&gt;
+
+&lt;p&gt;不同的p，直接导致P（样本结果|Model）的不同。&lt;/p&gt;
+
+&lt;p&gt;好的，我们的p实际上是有无数多种分布的。如下：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-19c3773b9b9a6130dc2d8be535add249_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;那么求出 p^70(1-p)^30为 7.8 * 10^(-31)&lt;/p&gt;
+
+&lt;p&gt;p的分布也可以是如下：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-66fe8b6dc2b50ad0d220b4ecc01ad45a_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;那么也可以求出p^70(1-p)^30为2.95* 10^(-27)&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;那么问题来了，既然有无数种分布可以选择，极大似然估计应该按照什么原则去选取这个分布呢？&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;答：采取的方法是让这个样本结果出现的可能性最大，也就是使得p^70(1-p)^30值最大，那么我们就可以看成是p的方程，求导即可！&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;那么既然事情已经发生了，为什么不让这个出现的结果的可能性最大呢？&lt;strong&gt;这也就是最大似然估计的核心。&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;我们想办法让观察样本出现的概率最大，转换为数学问题就是使得：&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;p^70(1-p)^30最大，这太简单了，未知数只有一个p，我们令其导数为0，即可求出p为70%，与我们一开始认为的70%是一致的。其中蕴含着我们的数学思想在里面。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;例子二&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;假设我们要统计全国人民的年均收入，首先假设这个收入服从服从正态分布，但是该分布的均值与方差未知。我们没有人力与物力去统计全国每个人的收入。我们国家有10几亿人口呢？那么岂不是没有办法了？&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;不不不，有了极大似然估计之后，我们可以采用嘛！我们比如选取一个城市，或者一个乡镇的人口收入，作为我们的观察样本结果。然后通过最大似然估计来获取上述假设中的正态分布的参数。&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;有了参数的结果后，我们就可以知道该正态分布的期望和方差了。也就是我们通过了一个小样本的采样，反过来知道了全国人民年收入的一系列重要的数学指标量！&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;那么我们就知道了极大似然估计的核心关键就是对于一些情况，&lt;strong&gt;样本太多，无法得出分布的参数值，可以采样小样本后，利用极大似然估计获取假设中分布的参数值。&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;参考:&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;求极大似然函数估计值的一般步骤：&lt;/strong&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;1、写出似然函数；&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-84eef0a858928f3cc28fd03bd7286b3a_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;2、对似然函数取对数；&lt;/li&gt;
+  &lt;li&gt;3、两边同时求导数；&lt;/li&gt;
+  &lt;li&gt;4、令导数为0解出似然方程。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;在机器学习中也会经常见到极大似然的影子。比如后面的&lt;strong&gt;逻辑斯特回归模型（LR）&lt;/strong&gt;，其核心就是构造对数损失函数后运用极大似然估计。&lt;/p&gt;
+
+&lt;h3 id=&quot;四--信息论&quot;&gt;四  信息论&lt;/h3&gt;
+
+&lt;p&gt;信息论本来是通信中的概念，但是其核心思想“熵”在机器学习中也得到了广泛的应用。比如决策树模型ID3，C4.5中是利用&lt;strong&gt;信息增益&lt;/strong&gt;来划分特征而生成一颗决策树的，而信息增益就是基于这里所说的&lt;strong&gt;熵&lt;/strong&gt;。所以它的重要性也是可想而知。&lt;/p&gt;
+
+&lt;p&gt;熵是什么？熵存在的意义是啥？为什么叫熵？这是3个非常现实的问题。答案非常明确：在机器学习中熵是表征随机变量分布的混乱程度，分布越混乱，则熵越大，在物理学上表征物质状态的参量之一，也是体系混乱程度的度量；&lt;/p&gt;
+
+&lt;h4 id=&quot;41--自信息&quot;&gt;4.1  自信息&lt;/h4&gt;
+
+&lt;p&gt;自信息是熵的基础，理解它对后续理解各种熵非常有用。&lt;strong&gt;自信息表示某一事件发生时所带来的信息量的多少&lt;/strong&gt;，当事件发生的概率越大，则自信息越小，或者可以这样理解：某一事件发生的概率非常小，但是实际上却发生了(观察结果)，则此时的自信息非常大；某一事件发生的概率非常大，并且实际上也发生了，则此时的自信息较小。以全班的考试成绩为例，通常我们知道整个班成绩是符合高斯分布的，通过一次考试，发现每个人成绩都是相同的，则在学校看来这是一个爆炸性新闻，因为这是一个极低的事件，但是却发生了，不符合常规，下一步应该就是调查了吧。再说一个生活中的例子，如果有人告诉我们一件相当不可能发生的事件发生了，那么我们收到的信息量要多于我们被告知某个很可能发生的事件发生时收到的信息，此时自信息就比较大了。
+从通俗角度理解了自信息的含义和作用，但是如何度量它呢？我们现在要寻找一个函数，它要满足的条件是：事件发生的概率越大，则自信息越小；自信息不能是负值，最小是0；自信息应该满足可加性，并且两个独立事件的自信息应该等于两个事件单独的自信息。下面给出自信息的具体公式：
+&lt;script type=&quot;math/tex&quot;&gt;I(p_i) = -log(p_i)&lt;/script&gt;
+&lt;img src=&quot;/img/v2-bc16a49eda82ae05b7d3b6af064178e5_hd-20191028092850051.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;其中 $p_i$表示随机变量的第i个事件发生的概率，自信息单位是bit,表征描述该信息需要多少位。可以看出，自信息的计算和随机变量本身数值没有关系，只和其概率有关，同时可以很容易发现上述定义满足自信息的3个条件。&lt;/p&gt;
+
+&lt;h4 id=&quot;42--熵&quot;&gt;4.2  熵&lt;/h4&gt;
+
+&lt;p&gt;上述自信息描述的是随机变量的某个事件发生所带来的信息量，而&lt;strong&gt;信息熵通常用来描述整个随机分布所带来的信息量平均值，更具统计特性&lt;/strong&gt;。信息熵也叫香农熵，在机器学习中，由于熵的计算是依据样本数据而来，故也叫经验熵。其公式定义如下：&lt;/p&gt;
+
+&lt;p&gt;如果一个随机变量X的可能取值为	$X={x_1,x_2,\cdots,x_n}$,其概率分布为 	$P(X=x_i)=p_i,i = 1,2,\cdots,n$ , 则随机变量X 的熵定义为H(X):&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/image-20191025163413110.png&quot; alt=&quot;image-20191025163413110&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;从公式可以看出，信息熵H(X)是各项自信息的累加值，由于每一项都是整正数，故而&lt;strong&gt;随机变量取值个数越多，状态数也就越多，累加次数就越多，信息熵就越大，混乱程度就越大，纯度越小&lt;/strong&gt;。越宽广的分布，熵就越大，在同样的定义域内，由于分布宽广性中脉冲分布&amp;lt;高斯分布&amp;lt;均匀分布，故而熵的关系为脉冲分布信息熵&amp;lt;高斯分布信息熵&amp;lt;均匀分布信息熵。可以通过数学证明，当随机变量分布为均匀分布时即状态数最多时，熵最大。&lt;strong&gt;熵代表了随机分布的混乱程度，这一特性是所有基于熵的机器学习算法的核心思想&lt;/strong&gt;。&lt;/p&gt;
+
+&lt;h4 id=&quot;43--联合熵&quot;&gt;4.3  联合熵&lt;/h4&gt;
+
+&lt;p&gt;两个随机变量X和Y的联合分布可以形成联合熵，定义为联合自信息的数学期望，它是二维随机变量XY的不确定性的度量，用&lt;strong&gt;H(X,Y)&lt;/strong&gt;表示：
+&lt;script type=&quot;math/tex&quot;&gt;H(X,Y) = -\sum_{i=1}^n\sum_{i=1}^nP(x_i,y_j)logP(x_i,y_j)&lt;/script&gt;
+注意事项：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;熵只依赖于随机变量的分布,与随机变量取值无关；&lt;/li&gt;
+  &lt;li&gt;定义0log0=0(因为可能出现某个取值概率为0的情况)；&lt;/li&gt;
+  &lt;li&gt;熵越大,随机变量的不确定性就越大,分布越混乱，随机变量状态数越多。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;44--条件熵&quot;&gt;4.4  条件熵&lt;/h4&gt;
+
+&lt;p&gt;条件熵的定义为:在X给定条件下,Y的条件概率分布的熵对X的数学期望.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/image-20191025164658251.png&quot; alt=&quot;image-20191025164658251&quot; /&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;45--交叉熵&quot;&gt;4.5  交叉熵&lt;/h4&gt;
+
+&lt;p&gt;其广泛用在逻辑回归的Sigmoid和softmax函数中作为损失函数使用。其主要用于度量两个概率分布间的差异性信息，由于其和相对熵非常相似，故详细分析对比见下一小结。p对q的交叉熵表示q分布的自信息对p分布的期望，公式定义为：
+&lt;script type=&quot;math/tex&quot;&gt;H(p,q) = E_{x~p}[-\log q(x)]= -\sum_{i=1}^np(x)\log q(x)&lt;/script&gt;
+其中。p是真实样本分布，q是预测得到样本分布。在信息论中，其计算的数值表示：如果用错误的编码方式q去编码真实分布p的事件，需要多少bit数，是一种非常有用的衡量概率分布相似性的数学工具。&lt;/p&gt;
+
+&lt;p&gt;由于交叉熵在逻辑回归中应用广泛，这里给出其定义式，使读者知道交叉熵的具体应用。逻辑回归算法的损失函数就是交叉熵，也叫做负对数似然，其定义为：
+&lt;script type=&quot;math/tex&quot;&gt;J( \theta ) = -\frac{1}{m}\sum_{i=1}^m(y_i\log h_{\theta}(x_i)+(1-y_i)\log (1-h_\theta (x_i)))&lt;/script&gt;
+其中,$y_i$是第i个样本的真实标签,h 是si gmoid预测输出值,J是凸函数,可以得到全局最优解&lt;/p&gt;
+
+&lt;p&gt;对于多分类的逻辑回归算法，通常我们使用Softmax作为输出层映射，其对应的损失函数也叫交叉熵，只不过写法有点区别，具体如下：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/image-20191025170322426.png&quot; alt=&quot;image-20191025170322426&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;其中，m是样本个数,k是输出层个数&lt;em&gt;。&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/image-20191025170343280.png&quot; alt=&quot;image-20191025170343280&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;可以看出，其实两者是一样的，softmax只是对sigmoid在多分类上面的推广。&lt;/p&gt;
+
+&lt;h4 id=&quot;46---相对熵&quot;&gt;4.6   相对熵&lt;/h4&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;相对熵是一个较高端的存在，其作用和交叉熵差不多。相对熵经常也叫做KL散度，在贝叶斯推理中，$D_{KL}(p&lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt;q)$  衡量当你修改了从先验分布 q 到后验分布 p 的信念之后带来的信息增益&lt;em&gt;。&lt;/em&gt;首先给出其公式&lt;em&gt;：&lt;/em&gt;&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/image-20191025170819058.png&quot; alt=&quot;image-20191025170819058&quot; /&gt;相对熵较交叉熵有更多的优异性质，主要为：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;当p分布和q分布相等时候，KL散度值为0，这是一个非常好的性质；&lt;/li&gt;
+  &lt;li&gt;可以证明是非负的；&lt;/li&gt;
+  &lt;li&gt;非对称的，通过公式可以看出，KL散度是衡量两个分布的不相似性，不相似性越大，则值越大，当完全相同时，取值为0。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;简单对比交叉熵和相对熵，可以发现仅仅差了一个H(p)，如果从优化角度来看，p是真实分布，是固定值，最小化KL散度情况下，H(p)可以省略，此时交叉熵等价于KL散度。
+下面讨论一个比较现实且非常重要的问题：既然相对熵和交叉熵表示的含义一样，为啥需要两个？在机器学习中何时使用相对熵，何时使用交叉熵？要彻底说清这个问题，难度很大，这里我仅仅从我知道的方面讲讲。首先需要明确：&lt;strong&gt;在最优化问题中，最小化相对熵等价于最小化交叉熵；相对熵和交叉熵的定义其实都可以从最大似然估计得到&lt;/strong&gt;，下面进行详细推导：以某个生成模型算法为例，假设是生成对抗网络GAN，其实只要是生成模型，都满足以下推导。若给定一个样本数据的真实分布 $P_{data}(x)$和生成的数据分布$P_G(x;\theta)$,那么生成模型希望能找到一组参数$\theta$使分布$P_G(x;\theta)$和$P_data(x)$ 之间的距离最短，也就是找到一组生成器参数而使得生成器能生成十分逼真的分布。现在从真实分布 $P_{data}(x)$中抽取m个真实样本${x^1,x^2,\cdots,x^m}$ , 对于每一个真实样本，我们可以计算 $P_G(x^i;\theta)$,即在由$\theta$ 确定的生成分布中, $x^i$样本所出现的概率。因此，我们可以构建似然函数：&lt;img src=&quot;/img/image-20191025171722998.png&quot; alt=&quot;image-20191025171722998&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;由于是求最大值，故整体乘上常数对结果没有影响,这里是逐点乘上一个常数，所以不能取等于号，但是因为在取得最大值时候 $P_G(x;\theta^*)$和 $P_{data}(x)$ 肯定是相似的，并且肯定大于0，所以依然可以认为是近视相等的&lt;img src=&quot;/img/image-20191025172006756.png&quot; alt=&quot;image-20191025172006756&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;上面的公式正好是交叉熵的定义式。然后我们再该基础上减掉一个常数，&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/image-20191025172028141.png&quot; alt=&quot;image-20191025172028141&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;通过以上各公式可以得出以下结论：&lt;strong&gt;最大化似然函数，等价于最小化负对数似然，等价于最小化交叉熵，等价于最小化KL散度。&lt;/strong&gt;
+推导了半天，依然没有回答上面的问题。学过机器学习的同学都知道：交叉熵大量应用在Sigmoid函数和SoftMax函数中，最典型的算法应该就是神经网络和逻辑回归吧，而相对熵大量应用在生成模型中，例如GAN、EM、贝叶斯学习和变分推导中。从这里我们可以看出一些端倪，如果想通过算法对样本数据进行概率分布建模，那么通常都是使用相对熵，因为我们需要明确的知道生成的分布和真实分布的差距，最好的KL散度值应该是0；而在判别模型中，仅仅只需要评估损失函数的下降值即可，交叉熵可以满足要求，其计算量比KL散度小。在数学之美书中，有这样几句话：交叉熵，其用来衡量在给定的真实分布下，使用非真实分布所指定的策略消除系统的不确定性所需要付出的努力的大小，相对熵，其用来衡量两个取值为正的函数或概率分布之间的差异。但是我觉得依然看不出区别。&lt;/p&gt;
+
+&lt;h4 id=&quot;47--互信息&quot;&gt;4.7  互信息&lt;/h4&gt;
+
+&lt;p&gt;互信息在信息论和机器学习中非常重要，其可以评价两个分布之间的距离，这主要归因于其对称性，假设互信息不具备对称性，那么就不能作为距离度量，例如相对熵，由于不满足对称性，故通常说相对熵是评价分布的相似程度，而不会说距离。互信息的定义为：&lt;strong&gt;一个随机变量由于已知另一个随机变量而减少的不确定性&lt;/strong&gt;，或者说从贝叶斯角度考虑，由于新的观测数据y到来而导致x分布的不确定性下降程度。公式如下：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/image-20191025172440540.png&quot; alt=&quot;image-20191025172440540&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;具体推导由于比较简单，但是非常繁琐，此次省略。从公式中可以看出互信息是满足对称性的，&lt;strong&gt;其在特性选择、分布的距离评估中应用非常广泛，请务必掌握&lt;/strong&gt;。其实互信息和相对熵也存在联系，如果说相对熵不能作为距离度量，是因为其非对称性，那么互信息的出现正好弥补了该缺陷，使得我们可以计算任意两个随机变量之间的距离，或者说两个随机变量分布之间的相关性、独立性。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/image-20191025172513369.png&quot; alt=&quot;image-20191025172513369&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;互信息也是大于等于0的，当且仅当x与y相互独立时候取等号。&lt;/p&gt;
+
+&lt;h4 id=&quot;48--信息增益&quot;&gt;4.8  信息增益&lt;/h4&gt;
+
+&lt;p&gt;信息增益是决策树ID3算法在进行特征切割时使用的划分准则，其物理意义和互信息完全相同，并且公式也是完全相同。其公式如下：
+&lt;script type=&quot;math/tex&quot;&gt;g(D,A) = H(D)-H(D|A)&lt;/script&gt;
+其中D表示数据集，A表示特征，信息增益表示得到A的信息而使得类X的不确定度下降的程度，在ID3中，需要选择一个A使得信息增益最大，这样可以使得分类系统进行快速决策。
+需要注意的是：在数值上，信息增益和互信息完全相同，但意义不一样，需要区分，当我们说互信息时候，两个随机变量的地位是相同的，可以认为是纯数学工具，不考虑物理意义，当我们说信息增益时候，是把一个变量看成是减少另一个变量不确定度的手段。&lt;/p&gt;
+
+&lt;h4 id=&quot;49--信息增益率&quot;&gt;4.9  信息增益率&lt;/h4&gt;
+
+&lt;p&gt;信息增益率是决策树C4.5算法引入的划分特征准则，其主要是克服信息增益存在的在某种特征上分类特征细，但实际上无意义取值时候导致的决策树划分特征失误的问题。例如假设有一列特征是身份证ID，每个人的都不一样，其信息增益肯定是最大的，但是对于一个情感分类系统来说，这个特征是没有意义的，此时如果采用ID3算法就会出现失误，而C4.5正好克服了该问题。其公式如下：
+&lt;script type=&quot;math/tex&quot;&gt;g_r(D,A) = g(D,A)/H(A)&lt;/script&gt;
+&lt;strong&gt;参考:&lt;/strong&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;五--数值计算&quot;&gt;五  数值计算&lt;/h3&gt;
+
+&lt;h4 id=&quot;51-上溢和下溢&quot;&gt;5.1 上溢和下溢&lt;/h4&gt;
+
+&lt;p&gt;在数字计算机上实现连续数学的基本困难是：我们需要通过有限数量的位模式来表示无限多的实数，这意味着我们在计算机中表示实数时几乎都会引入一些近似误差。在许多情况下，这仅仅是舍入误差。如果在理论上可行的算法没有被设计为最小化舍入误差的累积，可能会在实践中失效，因此舍入误差是有问题的，特别是在某些操作复合时。&lt;/p&gt;
+
+&lt;p&gt;一种特别毁灭性的舍入误差是&lt;strong&gt;下溢&lt;/strong&gt;。当接近零的数被四舍五入为零时发生下溢。许多函数会在其参数为零而不是一个很小的正数时才会表现出质的不同。例如，我们通常要避免被零除&lt;strong&gt;。&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;另一个极具破坏力的数值错误形式是&lt;strong&gt;上溢(overflow)&lt;/strong&gt;。当大量级的数被近似为 $+\infty$ 或 $-\infty$ 时发生上溢。进一步的运算通常将这些无限值变为非数字。&lt;/p&gt;
+
+&lt;p&gt;必须对上溢和下溢进行数值稳定的一个例子是&lt;strong&gt;softmax 函数&lt;/strong&gt;。softmax 函数经常用于预测与multinoulli分布相关联的概率，定义为：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-7283f680255ba0da3a69f2df58b58ae0_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;softmax 函数在多分类问题中非常常见。这个函数的作用就是使得在负无穷到0的区间趋向于0，在0到正无穷的区间趋向于1。&lt;/p&gt;
+
+&lt;h4 id=&quot;52-计算复杂性与np问题&quot;&gt;5.2 计算复杂性与NP问题&lt;/h4&gt;
+
+&lt;p&gt;&lt;strong&gt;1,算法复杂性&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;现实中大多数问题都是离散的数据集，为了反映统计规律，有时数据量很大，而且多数目标函数都不能简单地求得解析解。这就带来一个问题：&lt;strong&gt;算法的复杂性&lt;/strong&gt;。&lt;/p&gt;
+
+&lt;p&gt;算法理论被认为是解决各类现实问题的方法论。衡量算法有两个重要的指标：&lt;strong&gt;时间复杂度和空间复杂度&lt;/strong&gt;，这是对算法执行所需要的两类资源——时间和空间的估算。&lt;/p&gt;
+
+&lt;p&gt;一般，衡量问题是否可解的重要指标是：该问题能否在&lt;strong&gt;多项式时间&lt;/strong&gt;内求解，还是只能在&lt;strong&gt;指数时间&lt;/strong&gt;内求解？在各类算法理论中，通常使用多项式时间算法即可解决的问题看作是易解问题，需要指数时间算法解决的问题看作是难解问题。&lt;/p&gt;
+
+&lt;p&gt;指数时间算法的计算时间随着问题规模的增长而呈指数化上升，这类问题虽然有解，但并不适用于大规模问题。所以当前算法研究的一个重要任务就是将指数时间算法变换为多项式时间算法。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;2,确定性和非确定性&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;除了问题规模与运算时间的比较，衡量一个算法还需要考虑确定性和非确定性的概念。&lt;/p&gt;
+
+&lt;p&gt;这里先介绍一下&lt;strong&gt;“自动机”&lt;/strong&gt;的概念。自动机实际上是指一种基于状态变化进行迭代的算法。在算法领域常把这类算法看作一个机器，比较知名的有&lt;strong&gt;图灵机、玻尔兹曼机、支持向量机&lt;/strong&gt;等。&lt;/p&gt;
+
+&lt;p&gt;所谓确定性，是指针对各种自动机模型，根据当时的状态和输入，若自动机的状态转移是唯一确定的，则称&lt;strong&gt;确定性&lt;/strong&gt;；若在某一时刻自动机有多个状态可供选择，并尝试执行每个可选择的状态，则称为&lt;strong&gt;非确定性&lt;/strong&gt;。&lt;/p&gt;
+
+&lt;p&gt;换个说法就是：确定性是程序每次运行时产生下一步的结果是唯一的，因此返回的结果也是唯一的；非确定性是程序在每个运行时执行的路径是并行且随机的，所有路径都可能返回结果，也可能只有部分返回结果，也可能不返回结果，但是只要有一个路径返回结果，那么算法就结束。&lt;/p&gt;
+
+&lt;p&gt;在求解优化问题时，非确定性算法可能会陷入局部最优。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;3,NP问题&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;有了时间上的衡量标准和状态转移的确定性与非确定性的概念，我们来定义一下问题的计算复杂度。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;P类问题&lt;/strong&gt;就是能够以&lt;strong&gt;多项式时间&lt;/strong&gt;的&lt;strong&gt;确定性算法&lt;/strong&gt;来对问题进行判定或求解，实现它的算法在每个运行状态都是唯一的，最终一定能够确定一个唯一的结果——最优的结果。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;NP问题&lt;/strong&gt;是指可以用&lt;strong&gt;多项式时间&lt;/strong&gt;的&lt;strong&gt;非确定性算法&lt;/strong&gt;来判定或求解，即这类问题求解的算法大多是非确定性的，但时间复杂度有可能是多项式级别的。&lt;/p&gt;
+
+&lt;p&gt;但是，NP问题还要一个子类称为&lt;strong&gt;NP完全问题&lt;/strong&gt;，它是NP问题中最难的问题，其中任何一个问题至今都没有找到多项式时间的算法。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;机器学习&lt;/strong&gt;中多数算法都是针对NP问题（包括NP完全问题）的.&lt;/p&gt;
+
+&lt;h4 id=&quot;53-数值计算&quot;&gt;5.3 数值计算&lt;/h4&gt;
+
+&lt;p&gt;上面已经分析了，大部分实际情况中，计算机其实都只能做一些近似的数值计算，而不可能找到一个完全精确的值，这其实有一门专门的学科来研究这个问题，这门学科就是——&lt;strong&gt;数值分析&lt;/strong&gt;（有时也叫作“&lt;strong&gt;计算方法&lt;/strong&gt;”）；运用数值分析解决问题的过程为：实际问题→数学模型→数值计算方法→程序设计→上机计算求出结果。&lt;/p&gt;
+
+&lt;p&gt;计算机在做这些数值计算的过程中，经常会涉及到的一个东西就是&lt;strong&gt;“迭代运算”&lt;/strong&gt;，即通过不停的迭代计算，逐渐逼近真实值（当然是&lt;strong&gt;要在误差收敛的情况下&lt;/strong&gt;）。&lt;/p&gt;
+
+&lt;h3 id=&quot;六最优化&quot;&gt;六、最优化&lt;/h3&gt;
+
+&lt;h4 id=&quot;61-最优化理论&quot;&gt;6.1 最优化理论&lt;/h4&gt;
+
+&lt;p&gt;无论做什么事,人们总是希望以最小的代价取得最大的收益.在解决一些工程问题时,人们常会遇到多种因素交织在一起与决策目标相互影响的情况;这就促使人们创造出一种新的数学理论来应对这一挑战,也因此,最早的优化方法-线性规划诞生了.&lt;/p&gt;
+
+&lt;p&gt;在李航博士的《统计学习方法》中,其将机器学习总结为:&lt;strong&gt;机器学习 = 模型+策略+算法&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;可以看出,算法在机器学习中的重要性.&lt;/p&gt;
+
+&lt;h4 id=&quot;62-最优化问题的数学描述&quot;&gt;6.2 最优化问题的数学描述&lt;/h4&gt;
+
+&lt;p&gt;最优化的基本数学模型如下:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-f35226b3e0fa018db6a4b233c51eccbe_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;它有三个基本要素，即：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;设计变量:x时一个实数域范围内的n维向量,被称为决策变量或问题的解;&lt;/li&gt;
+  &lt;li&gt;目标函数:$f(x)$ 为目标函数;&lt;/li&gt;
+  &lt;li&gt;约束条件:$h_i(x) = 0$ 称为等式约束;$g_i(x)\leq 0$ 为不等式约束,$i = 0,1,2,…$&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;63-凸集与凸集分离定理&quot;&gt;6.3 凸集与凸集分离定理&lt;/h4&gt;
+
+&lt;h5 id=&quot;1凸集&quot;&gt;1,凸集&lt;/h5&gt;
+
+&lt;p&gt;实数域R上(或复数C上)的向量空间中,如果集合S中任两点的连线上的点都在S内,则称集合S为凸集,如下:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-608f89f47688c41e4c3f83cfad095c84_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;数学定义为：&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;设集合 $D \sub R^n$ ,若对于任意两点$x,y\in D$,及实数$\lambda(0\leq\lambda\leq 1)$都有:
+&lt;script type=&quot;math/tex&quot;&gt;\lambda x+(1-\lambda)y \in D&lt;/script&gt;
+则称集合D为凸集.&lt;/p&gt;
+
+&lt;h5 id=&quot;超平面和半平面&quot;&gt;超平面和半平面&lt;/h5&gt;
+
+&lt;p&gt;实际上,二维空间的超平面就是一条线(可以是曲线),三维空间的超平面就是一个面(可以是曲面).其数学表达式如下:&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;strong&gt;超平面:&lt;/strong&gt;$H={x \in R^n&lt;/td&gt;
+      &lt;td&gt;a_1+a_2+a_3+…+a_n = b}$&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;table&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;strong&gt;半平面:&lt;/strong&gt;$H^+={x \in R^n&lt;/td&gt;
+      &lt;td&gt;a_1+a_2+a_3+…+a_n \geq b}$&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h5 id=&quot;3-凸集分离定理&quot;&gt;3 凸集分离定理&lt;/h5&gt;
+
+&lt;p&gt;所谓两个凸集分离,直观地看就是两个凸集没有交叉和重合的部分,因此可以用一张超平面将两者隔在两边,如下图所示:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-4116a3bda12faa5e2421ce27efb7fb71_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;h5 id=&quot;4-凸函数&quot;&gt;4 凸函数&lt;/h5&gt;
+
+&lt;p&gt;凸函数就是一个定义域在某个向量空间的凸子集C上的实值函数.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-f1b39d0aad4388433158679221f813d2_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;数学定义&lt;/strong&gt;:&lt;/p&gt;
+
+&lt;p&gt;对于函数f(x),如果其定义域C是凸的,且对于$\forall x,y \in C,0\leq \alpha \leq 1$ 有:
+&lt;script type=&quot;math/tex&quot;&gt;f(\theta x +(1-\theta)y)\leq \theta f(x)+(1-\theta)f(y)&lt;/script&gt;
+则f(x)是凸函数&lt;/p&gt;
+
+&lt;p&gt;注:如果一个函数是凸函数,则其局部最优店就是他的全局最优嗲点,这个性质在机器学习算法优化中有很重要的应用,因为机器学习模型最后就是在求某个函数的全局最优点,一旦证明该函数(机器学习里面叫“损失函数”)是凸函数,那相当于我们只用求他的局部最优点了.&lt;/p&gt;
+
+&lt;h4 id=&quot;64-梯度下降算法&quot;&gt;6.4 梯度下降算法&lt;/h4&gt;
+
+&lt;h5 id=&quot;1-引入&quot;&gt;1 引入&lt;/h5&gt;
+
+&lt;p&gt;前面讲数值计算的时候提到过,计算机在运用迭代法做数值计算(比如求某个方程组的解)时,只要误差能够收敛,计算机最后经过一定次数的迭代后是可以给出一个跟真实解很接近的结果的.&lt;/p&gt;
+
+&lt;p&gt;这里进一步提出一个问题,如果我们得到的目标函数是非线性的情况下,按照哪个方向迭代求解误差的收敛速度会最快呢?&lt;/p&gt;
+
+&lt;p&gt;答案就是沿梯度方向.这就引入我们的梯度下降法.&lt;/p&gt;
+
+&lt;p&gt;2, &lt;strong&gt;梯度下降法&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;在多元微分学中,&lt;strong&gt;梯度就是函数的导数方向&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;梯度法是求解无约束多元函数极值最早的数值方法,很多机器学习的常用算法都是以它作为算法框架,进而导出更为复杂的优化方法.&lt;/p&gt;
+
+&lt;p&gt;在求解目标函数f(x)的最小值时,为求得目标函数的一个凸函数,在最优化方法中被表示为:$minf(x)$ 根据导数的定义,函数f(x)的导数就是目标函数在x上的变化率,在多元的情况下,目标函数f(x,y,z) 在某点的梯度$gradf(x,y,z)=(\frac{\partial f}{\partial x},\frac{\partial f}{\partial y},\frac{\partial f}{\partial z})$ 是一个由各个分量的偏导数构成的向量,负梯度方向是$f(x,y,z)$减小最快的方向.&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/v2-e61c38f10e34badf5b2c1f3b9c9bcfa0_hd.jpg&quot; alt=&quot;img&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;如上图所示,当需要求f(x)的最小值时(机器学习中的f(x)一般就是损失函数,而我们的目标就是希望损失函数最小化),我们就可以先任意选取一个函数的初始点$x_0$(三维情况就是好$(x_0,y_0,z_0)$,让其沿着途中红色箭头(负梯度方向)走,依次到$x_1,x_2,\cdots ,x_n$(迭代n 次)这样可最快达到极小值点.&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;梯度下降法过程如下:&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;输入:目标函数f(x),梯度函数g(x)=graf(x),计算精度$\varepsilon$&lt;/p&gt;
+
+&lt;p&gt;输出:f(x) 的极小值点$x^*$&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;任取初始值	$x_0$,置k=0;&lt;/li&gt;
+  &lt;li&gt;计算$f(x_k)$;&lt;/li&gt;
+  &lt;li&gt;
+    &lt;table&gt;
+      &lt;tbody&gt;
+        &lt;tr&gt;
+          &lt;td&gt;计算梯度$g_k = gradf(x_k)$,当$&lt;/td&gt;
+          &lt;td&gt; &lt;/td&gt;
+          &lt;td&gt;g_k&lt;/td&gt;
+          &lt;td&gt; &lt;/td&gt;
+          &lt;td&gt;&amp;lt;\varepsilon$ 时停止迭代,令$x^*=x_k$;&lt;/td&gt;
+        &lt;/tr&gt;
+      &lt;/tbody&gt;
+    &lt;/table&gt;
+  &lt;/li&gt;
+  &lt;li&gt;否则令$P_k = -g_k$,求$\lambda &lt;em&gt;k$使$f(x&lt;/em&gt;{k+1}) = min f(x_k+\lambda_kP_k)$;&lt;/li&gt;
+  &lt;li&gt;
+    &lt;table&gt;
+      &lt;tbody&gt;
+        &lt;tr&gt;
+          &lt;td&gt;置$x_{k+1}=x_k+\lambda_kP_k$,计算$f(x_k+1)$,当$&lt;/td&gt;
+          &lt;td&gt; &lt;/td&gt;
+          &lt;td&gt;f(x_{k+1}-f(x_k))&lt;/td&gt;
+          &lt;td&gt; &lt;/td&gt;
+          &lt;td&gt;&amp;lt;\varepsilon$或$&lt;/td&gt;
+          &lt;td&gt; &lt;/td&gt;
+          &lt;td&gt;x_{k+1}-x_k&lt;/td&gt;
+          &lt;td&gt; &lt;/td&gt;
+          &lt;td&gt;&amp;lt;\varepsilon$时,停止迭代,令$x^* = x_k+1$;&lt;/td&gt;
+        &lt;/tr&gt;
+      &lt;/tbody&gt;
+    &lt;/table&gt;
+  &lt;/li&gt;
+  &lt;li&gt;否则,置$k=k+1$,转3.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;65-随机梯度下降算法&quot;&gt;6.5 随机梯度下降算法&lt;/h4&gt;
+
+&lt;p&gt;上面可以看到,在梯度下降法的迭代中,除了梯度值本身的影响外,还有每一次取的步长$\lambda_k$也很关键:步长值取的越大,收敛速度越快,但是带来的可能性后果就是容易超过函数的最优点,导致发散;步长取太小,算法的收敛速度又会明显降低.因此我们希望 找到一种比较好的方法能够平衡步长.&lt;/p&gt;
+
+&lt;p&gt;随机梯度下降法并没有新的算法理论,仅仅是引进了随机样本抽取方式,并提供了一种动态步长取值策略.目的就是又要优化精度,又要满足收敛速度.&lt;/p&gt;
+
+&lt;p&gt;也就是说,上面的批量梯度下降法每次迭代时都会计算训练集中所有的数据,而随机梯度下降法每次迭代只是随机取了训练集中的一部分样本数据进行梯度计算,这样做最大的好处就是可以避免有时候陷入局部极小值的情况(因为批量梯度下降法每次都会使用全部数据,一旦到了某个局部极小值点可能就停止更新了;而随机梯度法由于每次都是随机取部分数据,所以就算局部极小值点,在下一步也还是可能跳出)&lt;/p&gt;
+
+&lt;p&gt;两者的关系可以这样理解:随机梯度下降法以损失很小的一部分精度和增加一定数量的迭代次数为代价,换取了总体的优化效率的提升.增加的迭代次数远远小于样本的数量.&lt;/p&gt;
+
+&lt;h4 id=&quot;66-牛顿法&quot;&gt;6.6 牛顿法&lt;/h4&gt;
+
+&lt;h5 id=&quot;1牛顿法介绍&quot;&gt;1,牛顿法介绍&lt;/h5&gt;
+
+&lt;p&gt;&lt;strong&gt;牛顿法&lt;/strong&gt;也是求解&lt;strong&gt;无约束最优化&lt;/strong&gt;问题常用的方法,&lt;strong&gt;最大的优点是收敛速度快&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;从本质上看.牛顿法是二阶收敛,梯度下降是一阶收敛,所以牛顿法更快.通俗地说,比如你想找到一条最短的路径走到一个盆地的最底部,梯度下降法每次只从你当前所处的位置选一个坡度最大的方向走一步,牛顿法在选择方向时,不仅会考虑坡度是否够大,还会考虑你走一步之后,坡度是否会变得更大,所以,可以输欧牛顿法比梯度法看得更远一点,能更快地走到最底部.&lt;/p&gt;
+
+&lt;p&gt;![img]/img/v2-e22ea8c565434e945a17a80bec5630b6_hd.jpg)&lt;/p&gt;
+
+&lt;p&gt;或者从几何上说，&lt;strong&gt;牛顿法就是用一个二次曲面去拟合你当前所处位置的局部曲面，而梯度下降法是用一个平面去拟合当前的局部曲面&lt;/strong&gt;，通常情况下，二次曲面的拟合会比平面更好，所以牛顿法选择的下降路径会更符合真实的最优下降路径。&lt;/p&gt;
+
+&lt;h5 id=&quot;牛顿法的推导&quot;&gt;牛顿法的推导&lt;/h5&gt;
+
+&lt;p&gt;将目标函数f(x)在 $x_k$ 处进行二次泰勒展开,可得:
+&lt;script type=&quot;math/tex&quot;&gt;f(x) = f(x)+f'(x_k)(x-x_k)+\frac{1}{2}f''(x_k)(x-x_k)^2&lt;/script&gt;&lt;/p&gt;
 </description>
         <pubDate>Mon, 09 Sep 2019 00:00:00 +0800</pubDate>
-        <link>http://localhost:4000/2019/09/09/HIVE%E5%92%8CHBASE%E5%8C%BA%E5%88%AB/</link>
-        <guid isPermaLink="true">http://localhost:4000/2019/09/09/HIVE%E5%92%8CHBASE%E5%8C%BA%E5%88%AB/</guid>
+        <link>http://localhost:4000/2019/09/09/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E4%B8%AD%E6%B6%89%E5%8F%8A%E7%9A%84%E6%95%B0%E5%AD%A6%E7%9F%A5%E8%AF%86/</link>
+        <guid isPermaLink="true">http://localhost:4000/2019/09/09/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E4%B8%AD%E6%B6%89%E5%8F%8A%E7%9A%84%E6%95%B0%E5%AD%A6%E7%9F%A5%E8%AF%86/</guid>
         
-        <category>大数据</category>
+        <category>机器学习</category>
+        
+        <category>概率论</category>
+        
+        <category>线性代数</category>
+        
+        <category>数值分析</category>
+        
+        <category>最优化</category>
         
         
       </item>
     
       <item>
-        <title>Xcode命令行工具管理</title>
-        <description>&lt;h2 id=&quot;安装&quot;&gt;安装&lt;/h2&gt;
+        <title>Typora使用指南</title>
+        <description>&lt;h3 id=&quot;设置图片默认保存位置&quot;&gt;设置图片默认保存位置&lt;/h3&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;xcode-select --install
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;h4 id=&quot;针对于当前文件&quot;&gt;针对于当前文件&lt;/h4&gt;
 
-&lt;p&gt;&lt;img src=&quot;https://upload-images.jianshu.io/upload_images/545662-f9031dfcce085f8f.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/459&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;编辑—&amp;gt;图片工具—&amp;gt;设置图片根目录&lt;/li&gt;
+  &lt;li&gt;选择所保存的目录即可&lt;/li&gt;
+&lt;/ol&gt;
 
-&lt;h2 id=&quot;xcode版本切换&quot;&gt;Xcode版本切换&lt;/h2&gt;
+&lt;h4 id=&quot;针对于全局文件&quot;&gt;针对于全局文件&lt;/h4&gt;
 
-&lt;h3 id=&quot;显示当前使用的xocde版本&quot;&gt;显示当前使用的xocde版本&lt;/h3&gt;
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;文件—&amp;gt;偏好设置—&amp;gt;图片插入&lt;/p&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ xcode-select --print-path
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+    &lt;p&gt;或者 编辑—&amp;gt;图片工具—&amp;gt;全局设置,两种方法一样效果&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;找到图片插入,选择「复制图片到./assets文件夹」&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;勾选「对本地位置的图片应用上述规则」和「优先使用相对路径」&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
 
-&lt;h3 id=&quot;选择xcode中的默认版本&quot;&gt;选择Xcode中的默认版本&lt;/h3&gt;
+&lt;h3 id=&quot;添加latex数学公式&quot;&gt;添加LaTeX数学公式&lt;/h3&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;$ sudo xcode-select -switch /Applications/Xcode.app
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;h4 id=&quot;进入数学公式的编辑栏方法mac&quot;&gt;进入数学公式的编辑栏方法(MAC)&lt;/h4&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;点击“段落”—&amp;gt;“公式块”&lt;/li&gt;
+  &lt;li&gt;快捷键option+commond+B&lt;/li&gt;
+  &lt;li&gt;“$$”+回车&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;常用公式代码&quot;&gt;常用公式代码&lt;/h4&gt;
+
+&lt;h5 id=&quot;上下标&quot;&gt;&lt;strong&gt;上/下标&lt;/strong&gt;&lt;/h5&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;算式&lt;/th&gt;
+      &lt;th&gt;Markdown&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$x^2 $&lt;/td&gt;
+      &lt;td&gt;x^2&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$y_1 $&lt;/td&gt;
+      &lt;td&gt;y_1&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$z_{12}$&lt;/td&gt;
+      &lt;td&gt;z_{12}&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;分式&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;算式&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Markdown&lt;/strong&gt;&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;1/2&lt;/td&gt;
+      &lt;td&gt;1/2&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;script type=&quot;math/tex&quot;&gt;\frac{1}{2}&lt;/script&gt;&lt;/td&gt;
+      &lt;td&gt;\frac{1}{2}&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;省略号&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;省略号&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Markdown&lt;/strong&gt;&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\cdots$&lt;/td&gt;
+      &lt;td&gt;\cdots&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;开根号&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;算式&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Markdown&lt;/strong&gt;&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\sqrt{2}$&lt;/td&gt;
+      &lt;td&gt;\sqrt{2}&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\sqrt[n]{e}$&lt;/td&gt;
+      &lt;td&gt;\sqrt[n]{e}&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;矢量&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;&lt;strong&gt;算式&lt;/strong&gt;&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Markdown&lt;/strong&gt;&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\vec{a}$&lt;/td&gt;
+      &lt;td&gt;\vec{a}&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;积分&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;&lt;strong&gt;算式&lt;/strong&gt;&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Markdown&lt;/strong&gt;&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\int{x}dx$&lt;/td&gt;
+      &lt;td&gt;\int{x}dx&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\int_{1}^{2}{x}dx$&lt;/td&gt;
+      &lt;td&gt;\int_{1}^{2}{x}dx&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;极限&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;&lt;strong&gt;算式&lt;/strong&gt;&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Markdown&lt;/strong&gt;&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\lim{a+b}$&lt;/td&gt;
+      &lt;td&gt;\lim{a+b}&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\lim_{n\rightarrow+\infty}$&lt;/td&gt;
+      &lt;td&gt;\lim_{n\rightarrow+\infty}&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;累加&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;&lt;strong&gt;算式&lt;/strong&gt;&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Markdown&lt;/strong&gt;&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\sum{a}$&lt;/td&gt;
+      &lt;td&gt;\sum{a}&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\sum_{n=1}^{100}{a_n}$&lt;/td&gt;
+      &lt;td&gt;\sum_{n=1}^{100}{a_n}&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;希腊字母&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;&lt;strong&gt;大写&lt;/strong&gt;&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Markdown&lt;/strong&gt;&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;小写&lt;/strong&gt;&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Markdown&lt;/strong&gt;&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$A$&lt;/td&gt;
+      &lt;td&gt;A&lt;/td&gt;
+      &lt;td&gt;$\alpha$&lt;/td&gt;
+      &lt;td&gt;\alpha&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$B$&lt;/td&gt;
+      &lt;td&gt;B&lt;/td&gt;
+      &lt;td&gt;$\beta$&lt;/td&gt;
+      &lt;td&gt;\beta&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\Gamma$&lt;/td&gt;
+      &lt;td&gt;\Gamma&lt;/td&gt;
+      &lt;td&gt;$\gamma$&lt;/td&gt;
+      &lt;td&gt;\gamma&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\Delta$&lt;/td&gt;
+      &lt;td&gt;\Delta&lt;/td&gt;
+      &lt;td&gt;$\delta$&lt;/td&gt;
+      &lt;td&gt;\delta&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$E$&lt;/td&gt;
+      &lt;td&gt;E&lt;/td&gt;
+      &lt;td&gt;$\epsilon$&lt;/td&gt;
+      &lt;td&gt;\epsilon&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt;$\varepsilon$&lt;/td&gt;
+      &lt;td&gt;\varepsilon&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$H$&lt;/td&gt;
+      &lt;td&gt;H&lt;/td&gt;
+      &lt;td&gt;$\eta$&lt;/td&gt;
+      &lt;td&gt;\eta&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$Z$&lt;/td&gt;
+      &lt;td&gt;Z&lt;/td&gt;
+      &lt;td&gt;$\zeta$&lt;/td&gt;
+      &lt;td&gt;\zeta&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\Theta$&lt;/td&gt;
+      &lt;td&gt;\Theta&lt;/td&gt;
+      &lt;td&gt;$\theta$&lt;/td&gt;
+      &lt;td&gt;\theta&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$I$&lt;/td&gt;
+      &lt;td&gt;I&lt;/td&gt;
+      &lt;td&gt;$\iota$&lt;/td&gt;
+      &lt;td&gt;\iota&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$K$&lt;/td&gt;
+      &lt;td&gt;K&lt;/td&gt;
+      &lt;td&gt;$\kappa$&lt;/td&gt;
+      &lt;td&gt;\kappa&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\Lambda$&lt;/td&gt;
+      &lt;td&gt;\Lambda&lt;/td&gt;
+      &lt;td&gt;$\lambda$&lt;/td&gt;
+      &lt;td&gt;\lambda&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;em&gt;M&lt;/em&gt;&lt;/td&gt;
+      &lt;td&gt;M&lt;/td&gt;
+      &lt;td&gt;$\mu$&lt;/td&gt;
+      &lt;td&gt;\mu&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;em&gt;N&lt;/em&gt;&lt;/td&gt;
+      &lt;td&gt;N&lt;/td&gt;
+      &lt;td&gt;ν&lt;/td&gt;
+      &lt;td&gt;\nu&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Ξ&lt;/td&gt;
+      &lt;td&gt;\Xi&lt;/td&gt;
+      &lt;td&gt;&lt;em&gt;ξ&lt;/em&gt;&lt;/td&gt;
+      &lt;td&gt;\xi&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;em&gt;O&lt;/em&gt;&lt;/td&gt;
+      &lt;td&gt;O&lt;/td&gt;
+      &lt;td&gt;&lt;em&gt;ο&lt;/em&gt;&lt;/td&gt;
+      &lt;td&gt;\omicron&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;Π&lt;/td&gt;
+      &lt;td&gt;\Pi&lt;/td&gt;
+      &lt;td&gt;π&lt;/td&gt;
+      &lt;td&gt;\pi&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;&lt;em&gt;P&lt;/em&gt;&lt;/td&gt;
+      &lt;td&gt;P&lt;/td&gt;
+      &lt;td&gt;ρ&lt;/td&gt;
+      &lt;td&gt;\rho&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\Sigma$&lt;/td&gt;
+      &lt;td&gt;\Sigma&lt;/td&gt;
+      &lt;td&gt;$\sigma$&lt;/td&gt;
+      &lt;td&gt;\sigma&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$T$&lt;/td&gt;
+      &lt;td&gt;T&lt;/td&gt;
+      &lt;td&gt;$\tau$&lt;/td&gt;
+      &lt;td&gt;\tau&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\Upsilon$&lt;/td&gt;
+      &lt;td&gt;\Upsilon&lt;/td&gt;
+      &lt;td&gt;$\upsilon$&lt;/td&gt;
+      &lt;td&gt;\upsilon&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\Phi$&lt;/td&gt;
+      &lt;td&gt;\Phi&lt;/td&gt;
+      &lt;td&gt;$\phi$&lt;/td&gt;
+      &lt;td&gt;\phi&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt;$\varphi$&lt;/td&gt;
+      &lt;td&gt;\varphi&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$X$&lt;/td&gt;
+      &lt;td&gt;X&lt;/td&gt;
+      &lt;td&gt;$\chi$&lt;/td&gt;
+      &lt;td&gt;\chi&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\Psi$&lt;/td&gt;
+      &lt;td&gt;\Psi&lt;/td&gt;
+      &lt;td&gt;$\psi$&lt;/td&gt;
+      &lt;td&gt;\psi&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\Omega$&lt;/td&gt;
+      &lt;td&gt;\Omega&lt;/td&gt;
+      &lt;td&gt;$\omega$&lt;/td&gt;
+      &lt;td&gt;\omega&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;三角函数&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;&lt;strong&gt;算式&lt;/strong&gt;&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Markdown&lt;/strong&gt;&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\sin$&lt;/td&gt;
+      &lt;td&gt;\sin&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\cos$&lt;/td&gt;
+      &lt;td&gt;\cos&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;对数函数&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;&lt;strong&gt;算式&lt;/strong&gt;&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Markdown&lt;/strong&gt;&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\log_28$&lt;/td&gt;
+      &lt;td&gt;\log_28&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\ln2$&lt;/td&gt;
+      &lt;td&gt;\ln2&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$lg10$&lt;/td&gt;
+      &lt;td&gt;\lg10&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;关系运算符&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;运算符&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Markdown&lt;/strong&gt;&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\pm$&lt;/td&gt;
+      &lt;td&gt;\pm&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\times$&lt;/td&gt;
+      &lt;td&gt;\times&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\cdot$&lt;/td&gt;
+      &lt;td&gt;\cdot&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\div$&lt;/td&gt;
+      &lt;td&gt;\div&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\neq$&lt;/td&gt;
+      &lt;td&gt;\neq&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\equiv$&lt;/td&gt;
+      &lt;td&gt;\equiv&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\leq$&lt;/td&gt;
+      &lt;td&gt;\leq&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\geq$&lt;/td&gt;
+      &lt;td&gt;\geq&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\approx$&lt;/td&gt;
+      &lt;td&gt;\approx&lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;p&gt;&lt;strong&gt;其它特殊字符&lt;/strong&gt;&lt;/p&gt;
+
+&lt;table&gt;
+  &lt;thead&gt;
+    &lt;tr&gt;
+      &lt;th&gt;&lt;strong&gt;符号&lt;/strong&gt;&lt;/th&gt;
+      &lt;th&gt;&lt;strong&gt;Markdown&lt;/strong&gt;&lt;/th&gt;
+    &lt;/tr&gt;
+  &lt;/thead&gt;
+  &lt;tbody&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\forall$&lt;/td&gt;
+      &lt;td&gt;\forall&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\infty$&lt;/td&gt;
+      &lt;td&gt;\infty&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\emptyset$&lt;/td&gt;
+      &lt;td&gt;\emptyset&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\exists$&lt;/td&gt;
+      &lt;td&gt;\exists&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\nabla$&lt;/td&gt;
+      &lt;td&gt;\nabla&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\bot$&lt;/td&gt;
+      &lt;td&gt;\bot&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\angle$&lt;/td&gt;
+      &lt;td&gt;\angle&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\because$&lt;/td&gt;
+      &lt;td&gt;\because&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt;$\therefore$&lt;/td&gt;
+      &lt;td&gt;\therefore&lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;tr&gt;
+      &lt;td&gt; &lt;/td&gt;
+      &lt;td&gt; &lt;/td&gt;
+    &lt;/tr&gt;
+  &lt;/tbody&gt;
+&lt;/table&gt;
+
+&lt;h5 id=&quot;花括号&quot;&gt;花括号&lt;/h5&gt;
+
+&lt;p&gt;$c(u)=\begin{cases} \sqrt\frac{1}{N}，u=0\ \sqrt\frac{2}{N}， u\neq0\end{cases}$&lt;/p&gt;
+
+&lt;p&gt;c(u)=\begin{cases} \sqrt\frac{1}{N}，u=0\ \sqrt\frac{2}{N}， u\neq0\end{cases}&lt;/p&gt;
+
+&lt;h5 id=&quot;空格&quot;&gt;空格&lt;/h5&gt;
+
+&lt;p&gt;$a \quad b$&lt;/p&gt;
+
+&lt;p&gt;a \quad b&lt;/p&gt;
+
 </description>
-        <pubDate>Sat, 05 May 2018 00:00:00 +0800</pubDate>
-        <link>http://localhost:4000/2018/05/05/Xcode%E5%91%BD%E4%BB%A4%E8%A1%8C%E5%B7%A5%E5%85%B7%E7%AE%A1%E7%90%86/</link>
-        <guid isPermaLink="true">http://localhost:4000/2018/05/05/Xcode%E5%91%BD%E4%BB%A4%E8%A1%8C%E5%B7%A5%E5%85%B7%E7%AE%A1%E7%90%86/</guid>
+        <pubDate>Mon, 09 Sep 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2019/09/09/Typora%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97/</link>
+        <guid isPermaLink="true">http://localhost:4000/2019/09/09/Typora%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97/</guid>
         
-        <category>Xcode</category>
+        <category>工具</category>
         
-        <category>iOS</category>
+        <category>Markdown</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>项目管理-Scrum敏捷开发</title>
+        <description>&lt;h3 id=&quot;1-敏捷agile-ˈædʒl&quot;&gt;1.	敏捷（Agile [ˈædʒl]）&lt;/h3&gt;
+&lt;h4 id=&quot;11-敏捷宣言&quot;&gt;1.1.	敏捷宣言&lt;/h4&gt;
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;个体与交互 胜过 过程与工具&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;可工作的软件 胜过 面面俱到的文档&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;客户协作 胜过 合同谈判&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;响应变化 胜过 遵循计划&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;12-敏捷开发&quot;&gt;1.2.	敏捷开发&lt;/h4&gt;
+&lt;p&gt;是价值驱动的，通过自组织团队在短期迭代过程中不断的交付，对用户有用的功能进行产品开发。
+敏捷开发流程，比如极限编程（Extreme Programming，XP）和 Scrum，寻求降低流程开销。尽管存在许多不同的流程，但它们当中都有一些共同的趋势：&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;越来越重视客户参与，而非重量级需求文档&lt;/li&gt;
+  &lt;li&gt;通过重构改进质量和设计；重的、自动化的单元测试；连续集成&lt;/li&gt;
+  &lt;li&gt;小团队，较少的正式沟通和更多的&lt;strong&gt;非正式沟通（15 分钟的站立早会，更多的配对编程）&lt;/strong&gt;&lt;/li&gt;
+  &lt;li&gt;短而一致的周期，最后是客户反馈&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;敏捷方法即剔除不需要的流程，直到只留下完成工作所必需的流程，可通过应用下列思想来学习如何协调传统管理与敏捷开发流程：&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;侧重于原则，而非流程&lt;/li&gt;
+  &lt;li&gt;创建小而灵巧的团队&lt;/li&gt;
+  &lt;li&gt;重视可测量的交付&lt;/li&gt;
+  &lt;li&gt;重视简约性&lt;/li&gt;
+  &lt;li&gt;重构代码并自动化测试&lt;/li&gt;
+  &lt;li&gt;获得客户反馈&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;13-敏捷原则&quot;&gt;1.3.	敏捷原则&lt;/h4&gt;
+&lt;ol&gt;
+  &lt;li&gt;尽早、持续交付有价值的软件，使客户满意&lt;/li&gt;
+  &lt;li&gt;欢迎改变需求&lt;/li&gt;
+  &lt;li&gt;经常交付可以工作的软件，交付间隔要短&lt;/li&gt;
+  &lt;li&gt;与客户（业务人员）共同工作&lt;/li&gt;
+  &lt;li&gt;以人为本，激励并相信他人可胜任工作，以个人为中心构建项目&lt;/li&gt;
+  &lt;li&gt;面对面的交谈&lt;/li&gt;
+  &lt;li&gt;可工作的软件是首要进度度量标准&lt;/li&gt;
+  &lt;li&gt;保持可持续的开发速度&lt;/li&gt;
+  &lt;li&gt;不断关注优秀的技能和好的设计&lt;/li&gt;
+  &lt;li&gt;保持简单&lt;/li&gt;
+  &lt;li&gt;自组织团队：不发号施令，让团队自身寻找最佳方式，自我调整&lt;/li&gt;
+  &lt;li&gt;定期反省、总结、调整&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&quot;2-scrum-skrʌm&quot;&gt;2.	Scrum [skrʌm]&lt;/h3&gt;
+
+&lt;h4 id=&quot;21-scrum敏捷过程概述&quot;&gt;2.1.	Scrum敏捷过程概述&lt;/h4&gt;
+
+&lt;p&gt;Scrum是一种迭代式增量软件开发过程，常用于敏捷开发；Scrum的意思是橄榄球里的争球。&lt;/p&gt;
+
+&lt;p&gt;Scrum的核心价值观是：承诺、专注、公开、敬重和勇气。&lt;/p&gt;
+
+&lt;p&gt;它提倡自我管理、涌现机制、可视性和评估/适应循环的根本原则。&lt;/p&gt;
+
+&lt;p&gt;它不涉及具体开发方法或者人员的有效沟通技巧等，Scrum的核心在于迭代；但可同其他方法论一起组成“敏捷联盟（Agile Alliance）”。&lt;/p&gt;
+
+&lt;p&gt;Scrum是一个框架，定义了高层次的管理流程，如下图所示：&lt;br /&gt;
+&lt;img src=&quot;/img/Scrum框架1-1.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;22-scrum特点&quot;&gt;2.2.	Scrum特点&lt;/h4&gt;
+&lt;ul&gt;
+  &lt;li&gt;敏捷的流程，可用于管控研发工作；&lt;/li&gt;
+  &lt;li&gt;现有设计流程的总结；&lt;/li&gt;
+  &lt;li&gt;以团队为基础，是一种在需求迅速变化的情况下迭代的、增量的开发系统和产品的方法；&lt;/li&gt;
+  &lt;li&gt;控制由利益和需求冲突导致混乱的流程；&lt;/li&gt;
+  &lt;li&gt;改善交流、协调合作的最优方式；&lt;/li&gt;
+  &lt;li&gt;检测产品开发和生产过程中障碍并将其去除的方式；&lt;/li&gt;
+  &lt;li&gt;最大化生产率的一种方法；&lt;/li&gt;
+  &lt;li&gt;适用于单一的项目到整个组织；&lt;/li&gt;
+  &lt;li&gt;让每个参与者都对自己的工作以及做出的贡献感到骄傲，并让他们发挥到最佳水平。
+    &lt;h4 id=&quot;23-开发流程&quot;&gt;2.3.	开发流程&lt;/h4&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;一个项目包含很多用户需求，可以把这些需求都划分成多个sprint(冲刺/快跑)来完成，每一个sprint就是一个迭代过程，也就是一个项目由多个迭代sprint组成。每个sprint包含需求-》分解功能-》细化-》开发-》测试-》演示等阶段，这样保证了每一次sprint开发出来的版本都是“可用的软件”。&lt;/p&gt;
+
+&lt;p&gt;主要开发过程如下图所示：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/scrum开发过程1-2.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;涵盖项目角色、活动形式关系的整体流程如下图：
+&lt;img src=&quot;/img/scrum整体流程1-3.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;简化的核心活动如下图：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/scrum核心活动1-4.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h4 id=&quot;24-通用实践&quot;&gt;2.4.	通用实践&lt;/h4&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;客户参与：&lt;/strong&gt; 有频繁的包含可工作功能的中间可交付成果。&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;制定计划：&lt;/strong&gt; 频繁的风险和缓解计划是由开发团队自己制定，在每个阶段根据承诺进行风险缓解，监测和管理（风险分析）；&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;进度透明：&lt;/strong&gt; 计划和模块开发具有透明性，让每个人知道谁负责什么，及什么时候完成。&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;项目跟踪：&lt;/strong&gt; 频繁的进行所有相关人员会议，以跟踪项目进展，平衡的仪表板更新（发布，客户，员工，过程），所有相关人员的变更，必须拥有预警机制。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;25-角色&quot;&gt;2.5.	角色&lt;/h4&gt;
+
+&lt;h5 id=&quot;251-产品开发团体&quot;&gt;2.5.1.	产品开发团体&lt;/h5&gt;
+&lt;p&gt;&lt;strong&gt;Scrum主管（Scrum Master）/SM&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;为Scrum过程负责的人，确保scrum的正确使用并使得Scrum的收益最大化。是规则的执行者，促进Scrum过程，去除那些影响团队交付迭代目标的障碍，负责屏蔽外界对开发团队的干扰，确保Scrum过程按照初衷使用。&lt;/p&gt;
+
+&lt;p&gt;清除挡在客户和开发工作之间的拦路虎，客户从而可以直接驱动开发&lt;br /&gt;
+教导客户如何最大化投资回报率profitability of the product（ROI），以及通过Scrum实现目标&lt;br /&gt;
+通过激发创造性与推动授权来提升开发团队的成员&lt;br /&gt;
+以任何可能的方式提升开发团队的开发效率&lt;br /&gt;
+改进工程实践和工具，使得每次功能性上的改进都能得以交付&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;产品负责人（Product Owner）/PO&lt;/strong&gt;&lt;br /&gt;
+负责业务概念与想法，负责维护产品任务表的人，代表利益相关者的利益。&lt;/p&gt;
+
+&lt;p&gt;确定产品的功能：编写用户故事，排出优先级，并放入产品任务表&lt;br /&gt;
+与团队一起来进行工作量估算，决定发布的日期和发布内容&lt;br /&gt;
+为产品的投资回报率(ROI)负责&lt;br /&gt;
+根据市场价值确定功能优先级&lt;br /&gt;
+在30天内调整功能和调整功能优先级&lt;br /&gt;
+接受或拒绝接受开发团队的工作成果&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;开发团队/Term&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;由负责自我管理开发产品的人组成的跨职能团队，负责交付产品的团队；由若干名（最佳5~9名）具有跨职能技能的人（设计、开发、测试等）组成的小团队完成实际的开发工作。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;具有不同特长的团队成员，人数控制比较少&lt;/li&gt;
+  &lt;li&gt;确定Sprint目标和具体说明的工作成果&lt;/li&gt;
+  &lt;li&gt;在项目范围内有权利做任何事情以确保达到Sprint的目标&lt;/li&gt;
+  &lt;li&gt;高度的自我管理能力&lt;/li&gt;
+  &lt;li&gt;成员更替只能在迭代之间进行，更佳方式是在发布之间进行&lt;/li&gt;
+  &lt;li&gt;向产品负责人演示产品功能&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;其他参与者&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;利益所有者（客户，提供商）：&lt;/strong&gt; 影响项目成功的人，但只直接参与迭代评审过程。&lt;br /&gt;
+&lt;strong&gt;高级经理：&lt;/strong&gt; 为产品开发团体架起环境的那个人。&lt;/p&gt;
+
+&lt;h4 id=&quot;26-工作划分&quot;&gt;2.6. 工作划分&lt;/h4&gt;
+&lt;h5 id=&quot;261-时间维度冲刺迭代阶段sprint&quot;&gt;2.6.1.	时间维度：（冲刺）迭代阶段（Sprint）&lt;/h5&gt;
+
+&lt;p&gt;7到30 天（1~4周）周期，创建可用的（可以随时推出）软件的一个增量；迭代过程中不变更迭代任务表（sprint backlog），需求尽量不被修改而被冻结，这由Scrum主管严格把关，不允许开发团队受到干扰。&lt;/p&gt;
+
+&lt;p&gt;Scrum的项目过程由一系列的Sprint组成，通过固定的周期保持良好的节奏，产品的设计、开发、测试都在Sprint期间完成，Sprint结束时交付可以工作的软件。&lt;/p&gt;
+
+&lt;h5 id=&quot;262-产品维度需求划分粒度&quot;&gt;2.6.2.	产品维度：需求划分粒度&lt;/h5&gt;
+
+&lt;p&gt;需求一般被分成三种粒度：把最高层次的叫做“特性”，每个特性都被分解成若干“故事”，而每个故事又被分解成若干最低层次的“任务”。&lt;/p&gt;
+
+&lt;p&gt;特性（Feature）/史诗（故事）（Epic）：是对用户有用和有意义的一项功能；
+（用户）故事（Store）：是特性的一个可测试的片断，以用户的语言来描述。只描述一个功能，而且每个用户故事的开发周期不要太长（1－5天）；用户故事的划分标准：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;封闭性：完整地交付一个客户价值&lt;/li&gt;
+  &lt;li&gt;针对性：只包含一个用户，因为多个用户常常有细微的差别&lt;/li&gt;
+  &lt;li&gt;独立性：故事间没有依赖&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;任务（Task）：是故事中的一个工作单元，通常以开发者的语言来描述；若“任务”颗粒度还太大或由多人协作分担，还可分为“子任务”。&lt;/p&gt;
+
+&lt;h4 id=&quot;263--代码维度需求与代码的对应关系---mvc&quot;&gt;2.6.3.	 代码维度：需求与代码的对应关系 - MVC&lt;/h4&gt;
+
+&lt;p&gt;Controller-Action树是一个潜在的史诗-故事树的颗粒度原型，使用此原型有以下几个好处：&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Action是一类特殊的面向用户业务和价值的函数，还是客户可以直接感知并调用的函数；&lt;/li&gt;
+  &lt;li&gt;Action的数量多，客户可感知的功能一般也就多；&lt;/li&gt;
+  &lt;li&gt;Action是一类可单独演示、单独测试的函数，很适合作为故事使用；&lt;/li&gt;
+  &lt;li&gt;Action很容易被程序员所理解，程序员更容易回答“你们的软件有多少真正的用户故事？”。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;故事对应Action是好理解的，为何是Controller对应史诗，而不是Model？Controller是面向用户写的，而Model是面向实现技术的。如要访问“增加一个用户”的故事，用户会输入Controller的访问链接，而其中可能会用到几个Model：UserStories, Statuses,…用户无法直接访问Model，但可直接访问Controller。所以MVC的Model更像是数据对象（DataModel），而Controller才是业务领域对象（BusinessModel），是“一组逻辑上的数据，用户能够理解和识别它”。&lt;/p&gt;
+
+&lt;p&gt;对应于Java工程中的SSI/SSM/SSH体系中，因实现体系不同，且实际Controller已由Struts实现，所以分两种情况:&lt;/p&gt;
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;一个页面URL只对应一个Action类，调用默认方法进行业务处理: 上述的MVC概念中的Controller（史诗）即Struts中的Action类对应的namespace，Action（故事）即Action类（的默认方法）。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;一个页面URL对应Action类中的一个方法，调用该方法进行业务处理：上述的MVC概念中的Controller（史诗）即Struts中的一个Action类，Action（故事）即该类中的action方法。&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;对于Spring管理的Service，一般和上述概念中的Controller（史诗）（起到BusinessModel作用）对应，Manager类可依据业务相关性涵盖多个史诗；它们被Action类调用的方法，对应为故事，或故事分解后的任务（Task）、子任务（Sub-Task）。&lt;/p&gt;
+
+&lt;p&gt;而DAO类，一般应和值对象（DataModel、数据库表）对应，是对该DataModel的数据库相关操作；当Service需要同时操作多个DataModel，该操作又无法分解为多个DAO类中的操作时，则选择一个主要的DataModel对应的DAO类，将该操作放置其中，今后以该DataModel为主的多DataModel操作，原则上都应放置于同一个DAO类中。&lt;/p&gt;
+
+&lt;h4 id=&quot;27-工作成果&quot;&gt;2.7.	工作成果&lt;/h4&gt;
+
+&lt;p&gt;流程的每一步生成一个或多个可度量的结果和交付，叫做“工件”。敏捷流程寻求将工件数目减少到实际需要的数目；工作代码是一个最重要的工件。敏捷流程依赖频繁的重构和单元测试来改进设计；敏捷流程通常不要求成堆的文档。通常可以构建有助于完成工作的设计文档，但应该把重点一直放在交付工作代码上。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;工作代码&lt;/strong&gt;&lt;br /&gt;
+简单编码：重视简约性，最好是构建易于重构的且完全是需要的代码；不成熟的优化、对可能的未来特性的支持以及不支持直接需求的设计模式会浪费太多精力。通过以下技术来精简：&lt;br /&gt;
+1、列出迭代的需求清单，只编写支持这些需求的代码；在极限情况下，只按照正式需求或 bug 来编写代码；&lt;br /&gt;
+2、在编码之前不断寻找更简单的解决方案；很多代码的复杂性仅是因为想象中的功能； &lt;br /&gt;
+3、首先编写测试用例，并且只编写足以让测试用例通过的代码。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;彻底重构和自动化测试&lt;/strong&gt;：在简单编码的基础上，若出现了简单抽象（需要复制代码）的情况发生，就需重构代码，而不要惧怕重构；为避免重构引入新错误，就需依赖自动化测试用例，保证重构质量。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;产品任务表（Product Backlog）&lt;/strong&gt;
+表示可以预知的所有任务，包括未细化的产品功能要求、Bugs、缺陷、用户提出的改进、具竞争力的功能及技术升级等，按优先级定义出来，这些任务可能不是完整的，甚至可能随时会更改添加。&lt;/p&gt;
+
+&lt;p&gt;它是按照优先级排序的高层需求。是整个项目的概要文档，包括所有所需特性的粗略的描述，每个人都可编辑；按照优先级排列，包括粗略的进度估算，通常以天为单位，估算将帮助产品负责人衡量时间表和优先级；哪些任务项会被加入一次迭代由迭代计划会议决定，但可以不按照优先级别来做。&lt;/p&gt;
+
+&lt;p&gt;任何一个Backlog的目标都是：它应该足够短、级别足够高，无特殊情况不需要修改。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;ID：&lt;/strong&gt; 确定后不变，可由其它文档引用；&lt;br /&gt;
+&lt;strong&gt;Name：&lt;/strong&gt; 简单的描述来说明故事（2-10个字）；&lt;br /&gt;
+&lt;strong&gt;Imp重要性/优先级：&lt;/strong&gt; 优先级越高的一般越早实现；&lt;br /&gt;
+&lt;strong&gt;Est/初始估算：&lt;/strong&gt; Team来根据故事描述内容来粗略估算，故事不应太短，也不应太细；&lt;br /&gt;
+&lt;strong&gt;How to demo：&lt;/strong&gt; 从用户视角，从操作层面进行讲解这个故事如何通过软件来演示，也可以作为一个简单的测试用例。&lt;br /&gt;
+&lt;strong&gt;Notes：&lt;/strong&gt; 相关信息、解释说明和对其他资料的引用等，一般都非常简短；不写具体的规则和算法。&lt;br /&gt;
+主题：有时还会增加一个分类列来标识出故事的主题，通过主题来从更大视角来查看需求主要内容，后期也可以根据主题的优先级来初始确定故事的优先级。&lt;br /&gt;
+&lt;img src=&quot;/img/scrum优先级1-5.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;迭代任务表（Sprint Backlog）&lt;/strong&gt;
+要在迭代中完成的任务的清单。任务被分解为以小时为单位，没有任务可超过16个小时；任务不会被分派，而是由团队成员签名认领他们喜爱的任务。&lt;/p&gt;
+
+&lt;h4 id=&quot;28-工作可视化&quot;&gt;2.8.	工作可视化&lt;/h4&gt;
+
+&lt;h5 id=&quot;281-燃尽图burndown-chart&quot;&gt;2.8.1.	燃尽图（Burndown Chart）&lt;/h5&gt;
+&lt;p&gt;在本次迭代长度上显示所有剩余工作时间逐日递减的图。一个公开展示的图表，显示当前迭代中未完成的任务数目，或在迭代任务表上未完成的事项/问题数目。可作为工件提交。&lt;br /&gt;
+&lt;img src=&quot;/img/scrum燃尽图1-6.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h5 id=&quot;282-任务看板图task-kanban-board&quot;&gt;2.8.2.	任务看板图（Task Kanban Board）&lt;/h5&gt;
+&lt;p&gt;看板是代表一项要完成的任务的标签。如下图，看板图显示了在本次迭代中要完成的所有任务的当前状态。任务用卡片（便笺纸）来代表，状态则由板上分别标有“待办”、“处理中”、“挂起”、和“完成”等区域来代表。看板图帮助团队理解当前做得如何，以及下一步要做什么，令团队能够自我指导。
+&lt;img src=&quot;/img/scrum任务看板图1-7.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+&lt;h5 id=&quot;283-特性看板图feature-kanban-board&quot;&gt;2.8.3.	特性看板图（Feature Kanban Board）&lt;/h5&gt;
+&lt;p&gt;另一种类型的看板图，表的横轴代表时间线，线上的竖直区域代表发布，在区域中的卡片各自代表一项该次发布中要实现的特性。任务看板图常在开发团队中使用，跟任务看板图相比，特性看板图为产品路线图提供了一种更高层次的概观，因此分享范围应该被扩大到整个大团队，包括客户、市场员工和管理层。
+&lt;img src=&quot;/img/scrum特性看板图1-8.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+&lt;h5 id=&quot;284-停车场图parking-lot-chart&quot;&gt;2.8.4.	停车场图（Parking Lot Chart）&lt;/h5&gt;
+&lt;p&gt;被用来提供一种最高层次的对项目状态的摘要总结，有时候也被称为“项目仪表板（Project Dashboard）”。
+&lt;img src=&quot;/img/scrum停车场图1-9.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+&lt;h5 id=&quot;285-表情日历niko-niko-calendarsmiley-calendar&quot;&gt;2.8.5.	表情日历（Niko-niko Calendar、Smiley Calendar）&lt;/h5&gt;
+&lt;p&gt;显示了团队成员每日的心情。当天工作结束后，每个人都在离开团队空间之前往自己的日历上画一个表情符号。它从成员的精神健康和动力的角度来观察项目。&lt;br /&gt;
+&lt;img src=&quot;/img/scrum表情日历1-10.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+&lt;h5 id=&quot;286-可视化总结&quot;&gt;2.8.6.	可视化总结&lt;/h5&gt;
+
+&lt;p&gt;&lt;strong&gt;用看板图作为主要的信息辐射体：&lt;/strong&gt;&lt;br /&gt;
+用卡片作为任务、故事、特性的象征（看板），并将它们依附在时间线上（看板图）。这里存在不同的粒度。 &lt;br /&gt;
+计算看板（未完成任务）的数目，分时间段来跟踪它们，以显示出工作的完成趋势。这里也存在不同的粒度。 &lt;br /&gt;
+总结最高层次上的项目状态。&lt;br /&gt;
+除了表情日历之外，还有很多日历变种可以用来显示项目的状态或者计划。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;用看板图结合时间与任务：&lt;/strong&gt;&lt;br /&gt;
+“特性看板”的长处在于向全团队提供项目的一个高度抽象的视角。可以搭配停车场图来显示出最高层次的状态。&lt;br /&gt;
+“故事看板”处在中间层次，向团队提供每次迭代的最广泛周密的信息，搭配迭代的燃尽图会更有效。&lt;br /&gt;
+“任务看板”的层次最低，它显示出每日变动的当前状态，搭配每日的燃尽图会更有帮助。&lt;/p&gt;
+
+&lt;h4 id=&quot;29-活动形式&quot;&gt;2.9.	活动形式&lt;/h4&gt;
+
+&lt;h5 id=&quot;291-计划会议sprint-planning-meeting&quot;&gt;2.9.1.	计划会议（Sprint Planning Meeting）&lt;/h5&gt;
+&lt;p&gt;产品负责人讲解故事、罗列任务项/需求，开发团队预估能完成多少任务项；可分两部分，前部分全体参加，讲解故事，后部分产品负责人可不参加，将故事分解为任务进行估算，制定开发细节。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;计划会议1 – 迭代任务表（故事）&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;定出 Sprint 目标和既定产品 Backlog，限制在4小时。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;会议准备&lt;/strong&gt;：&lt;br /&gt;
+     已按优先级排列产品 Backlog 中各项问题&lt;br /&gt;
+     已评估 Backlog 中的各项问题的优先级&lt;br /&gt;
+     把产品 Backlog 公开给会议中的每个人，保证其可被获取&lt;br /&gt;
+     预期团队中有哪些人已明确会缺席（如度假）&lt;br /&gt;
+     每个人都可以获取上次 Sprint 评审会议和 Sprint 回顾会议的结果&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Sprint 时间表已经安排&lt;/li&gt;
+  &lt;li&gt;Sprint 计划会议 1 的时间安排&lt;/li&gt;
+  &lt;li&gt;Sprint 计划会议 2 的时间安排&lt;/li&gt;
+  &lt;li&gt;Sprint 的第一天已确定&lt;/li&gt;
+  &lt;li&gt;Sprint 的最后一天已确定&lt;/li&gt;
+  &lt;li&gt;Sprint 每日例会的时间安排&lt;/li&gt;
+  &lt;li&gt;Sprint 评审会议的时间安排&lt;/li&gt;
+  &lt;li&gt;Sprint 回顾会议的时间安排&lt;/li&gt;
+  &lt;li&gt;为既定 Backlog 准备图钉板和用作计划纸牌的卡片（可选）&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;会议进程：&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;把 Sprint 时间表公开给所有人&lt;/li&gt;
+  &lt;li&gt;把 Sprint 评审会议的结果公开给所有人&lt;/li&gt;
+  &lt;li&gt;把 Sprint 回顾会议的结果公开给所有人&lt;/li&gt;
+  &lt;li&gt;产品负责人向团队产品阐述产品远景&lt;/li&gt;
+  &lt;li&gt;产品负责人和团队一起确定 Sprint 目标&lt;br /&gt;
+      如果 Backlog 里有问题遗漏：产品负责人有权限往 Backlog 里添加问题&lt;br /&gt;
+     如果产品 Backlog 完全未被评估：选择 Backlog 中您认为是最小用例的问题，并指派其工作量为 2 个Story Point。以这个最小用例的工作量标准，分配 Backlog 中其他问题的 Story Point&lt;br /&gt;
+     如果 Backlog 中的一些问题尚未被评估：根据其他问题工作量，评估这些问题的 Story Point 量&lt;br /&gt;
+     如果产品 Backlog 中的各项还没能合理地按优先级排序:产品负责人对产品 Backlog 中的各项按优先级排序&lt;br /&gt;
+      产品负责人和小组成员相互认可这 Sprint 目标和既定产品 Backlog&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;会议结果：&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;为 Sprint 计划会议2的进行准备好既定产品 Backlog&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;&lt;strong&gt;计划会议2 – 迭代任务表（任务）&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;确定所有任务，生成 Sprint Backlog，确认 Sprint 目标。开发团队将既定产品 Backlog 中的每一项细化成多个任务。每个任务完成的时间限定在一天内，限制在4小时。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;会议准备：&lt;/strong&gt;&lt;br /&gt;
+     任务规划时可以参考既定产品 Backlog&lt;br /&gt;
+     为既定 Backlog 准备图钉板（可选）&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;会议进程：&lt;/strong&gt;&lt;br /&gt;
+团队成员从 Backlog 的各项问题中分出相应的任务&lt;br /&gt;
+确保考虑到工作中所有的细节：编码、测试、代码评审、会议、学习新技术、编写文档&lt;br /&gt;
+团队确认 Sprint 目标&lt;br /&gt;
+如果任务需时超过一天：尝试把该任务分割成几个小任务&lt;br /&gt;
+如果团队认为 Sprint Backlog 中项过多：和产品负责人一起删减 Backlog 中的问题&lt;br /&gt;
+如果团队认为 Sprint Backlog 中的项过少：和产品负责人一起从产品 Backlog     中选出最重要问题，加入Sprint Backlog 中&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;会议结果:&lt;/strong&gt;&lt;br /&gt;
+Sprint 目标和 Sprint Backlog 对于公司内的所有人都是公开的&lt;br /&gt;
+所有团队成员都可以获取 Sprint Backlog 中的任务&lt;/p&gt;
+
+&lt;h5 id=&quot;292-每日立例会daily-standup-meeting&quot;&gt;2.9.2. 每日立/例会（Daily Standup Meeting）&lt;/h5&gt;
+&lt;p&gt;每一天，开发团队都会举行项目状况会议。注意引导话题，在会议结束时可以做个简短的总结，说出重点就行，做好每日规划。&lt;/p&gt;
+
+&lt;p&gt;原则：会议准时开始，对迟到者有惩罚措施，团体成员才可发言，限制在15分钟（可站立讨论），固定地点和每天的同一时间召开。&lt;/p&gt;
+
+&lt;p&gt;问题：每个开发团队成员需回答三个问题，即完成了哪些工作？明天打算做什么？是否存在什么障碍？（Scrum主管需要记下这些障碍）&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;会议准备：&lt;/strong&gt;&lt;br /&gt;
+在迭代任务表上的所有任务都是可增删修改，可重排序的，任务的状态可设为待办（todo）、处理中（doing）、完成（done）（可以再加一个test表示需验证）。
+&lt;strong&gt;会议进程：&lt;/strong&gt;&lt;br /&gt;
+上次会议时的任务哪些已经完成：把任务从“正在处理”状态转为“已完成”状态&lt;br /&gt;
+下一次会议之前，你计划完成什么任务？&lt;br /&gt;
+如果任务状态为“待处理”：转为“正在处理”状态&lt;br /&gt;
+如果任务不在 Sprint Backlog 上：添加这个任务&lt;br /&gt;
+如果任务不能在一天内完成：把这任务细分成多个任务&lt;br /&gt;
+如果任务可以在一天内完成：把任务状态设为“正在处理”&lt;br /&gt;
+如果任务状态已经是“正在处理”：询问是否存在阻碍任务完成得问题&lt;br /&gt;
+什么问题阻碍？：如果有阻碍开发进度的问题，加入到障碍 Backlog 中&lt;br /&gt;
+展开问题的讨论：提醒团队的成员们注意把精力集中在回答关键问题上
+&lt;strong&gt;会议结果：&lt;/strong&gt;
+得到最新的障碍 Backlog&lt;br /&gt;
+得到最新的迭代任务表&lt;br /&gt;
+最新的工作进度图&lt;/p&gt;
+
+&lt;h5 id=&quot;293--评审会review-meeting&quot;&gt;2.9.3.  评审会（Review Meeting）&lt;/h5&gt;
+
+&lt;p&gt;在迭代结束前，开发团队给产品负责人和/或其他参与者演示并接受评价的会议，限制在4小时。
+让演示关注业务层次，不要关注技术细节。注意力放在“我们做了什么”，而不是“我们怎么做的”，有的sprint可能会包含很多bug修复等功能，在评审会议中不要演示太多一大堆细碎的bug修复，除非这个很重要。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;会议准备：&lt;/strong&gt; 准备演示环境和报告，准备工作限制在1小时。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;会议进程：&lt;/strong&gt;&lt;br /&gt;
+确保所有人员都清晰目标，如果有人对产品不知道，则花几分钟来进行描述。&lt;br /&gt;
+团队按 Backlog 中的问题，逐个地介绍这次 Sprint 的结果，和演示新功能。&lt;br /&gt;
+如果产品负责人想要改变功能：添加一个新问题到产品 Backlog 中&lt;br /&gt;
+如果对功能有一个新的想法：添加一个新问题到产品 Backlog 中&lt;br /&gt;
+如果小组报告项目遇到阻碍现在还没能解决：把该障碍加入到障碍 Backlog&lt;br /&gt;
+会议结束时，Scrum主管向产品负责人和全体利益相关者宣布下次审核地点和时间。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;会议结果：&lt;/strong&gt; 对这次 Sprint 的结果和整个产品的开发状态的共识。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;2.9.4. 回顾会（Retrospective Meeting）&lt;/strong&gt;
+在迭代结束后，开发团队召开的关于自我持续改进的会议。每一个迭代完成后举行，总结和反思本次迭代，进行持续过程改进，限制在4小时，Scrum主管强调项目有关的规范（disciplines）。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;会议准备：&lt;/strong&gt; 回顾白板分三列。第一列和第二列是回顾过去，第三列是展望将来。
+Good：如果重做同一个sprint，哪些做法可以保持
+Could have done better：如果重做同一个sprint，哪些做法需要改变
+Improvements：有关将来如何改进的具体想法&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;会议进程：&lt;/strong&gt;
+介绍会议目标和议程
+准备：制定和回顾团队价值观和约定：相信每个人可做的更好、大家参与、坦诚交流、多说自己少说别人（不推责任）、不深究业务细节问题
+收集数据：事件、度量、完成的故事等。
+事件：对团队每个人都重要的任何事件，包含会议、决策点、里程碑、采用新技术等。
+度量：包含燃烧图、速度、bug数、完成故事点数、代码重构数等。
+&lt;strong&gt;产生见解：&lt;/strong&gt; 多问“为什么”，从收集的数据中找出优点和问题
+向与会者解说如何使用该贴纸进行工作：使用贴纸时，注意一张贴纸只记录一件事。
+派发贴纸，通过头脑风暴分别得出回顾白板三列的所有想法。
+确定改进项：每人三票，投票决定下一sprint着重进行哪些改进（2－5项）
+&lt;strong&gt;结束回顾：&lt;/strong&gt; 给会议做个总结，表明下一个回顾会议需要跟踪哪些做法&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;会议结果：&lt;/strong&gt;
+回顾白板，以及下一sprint需要改进的做法，在下一回顾中，会跟踪这些改进的情况。
+把障碍增加到障碍 Backlog 中去。&lt;/p&gt;
+
+&lt;h4 id=&quot;210-示例参考&quot;&gt;2.10.	示例、参考&lt;/h4&gt;
+
+&lt;h5 id=&quot;2101-按阶段结合jira划分的工作项&quot;&gt;2.10.1.	按阶段结合JIRA划分的工作项&lt;/h5&gt;
+&lt;p&gt;每次迭代都分为5个阶段，但每个阶段的时间根据版本情况定，最终目标是：第一个阶段拿到交付范围，在第五个阶段都完成，并拿到本次版本团队所消耗的工时。&lt;/p&gt;
+
+&lt;p&gt;Jira是项目过程管理的一种手段，更多体现在工时跟踪上；项目额外的风险和依赖性的计划通过Wiki、Excel、Doc、邮件等单独管理。&lt;br /&gt;
+&lt;img src=&quot;/img/scrumJIR1-11.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+&lt;h5 id=&quot;2102-适用的项目&quot;&gt;2.10.2.	适用的项目&lt;/h5&gt;
+&lt;p&gt;刚刚了解Scrum时，经常会有这样的疑问：到底什么样的项目适合使用Scrum呢？大家也一直在探讨。首先，来看一下关于过程的定义：过程控制通常有两种形式，一种是预定义过程，另一种则是经验性过程。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;预定义过程&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;每一项工作都可以被完全理解；给予合理的输入定义，每次便可以得到相同的输出；过程启动后，允许运行直到结束，每次运行产生相同的结果。&lt;/p&gt;
+
+&lt;p&gt;预定义过程的示例比如：生产混凝土的过程，只要原料配比确定，加入的顺序以及搅拌动作、搅拌时间确定，那么产出的结果将完全一样。&lt;/p&gt;
+
+&lt;p&gt;传统的瀑布开发模式是基于预定义过程来设计的。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;经验性过程&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;过程是不能够完全预定义好；结果是不可预知的；生产过程是不可重复的；通过不断的检查和调整使得过程能够产出我们需要的结果。&lt;/p&gt;
+
+&lt;p&gt;经验性过程的示例比如：一场足球赛，不可能规定好每个人的动作，我们也不能预测比赛的结果，我们只能通过激励，通过不断检视和调整团队，让他们发挥到更好的水平，以达成战胜对手的目标。&lt;/p&gt;
+
+&lt;p&gt;Scrum是一个经验性过程，它的核心是在项目的整个过程中提供给项目的参与者以及干系人高度的透明性，基于透明性来进行不断的检查和调整，通过不断的检查和调整持续的优化过程和产出结果，提升团队交付能力，以此达到按时交付高质量的、客户真正需要的产品。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;适合管理复杂的项目&lt;/strong&gt;
+基于上述的对比，显而易见的是管理复杂的项目时，不可能在一开始把整个的过程预先定义好；项目的结果如何，也很难在一开始就完全预知，项目存在很多的不确定性，整个项目过程也是不可能重复进行的；所以，管理这样的项目需要使用Scrum这样的经验性的过程来达到更好的效果。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;总结&lt;/strong&gt;&lt;br /&gt;
+最后，就目前软件开发的现状来说，需求的变更是很平常的事情，初期客户由于不了解自己具体所要的系统，而描述的不清楚，但随着开发的进行，随着沟通的增多，客户会越来越清楚想要开发的系统，因此在开发中经常会变更需求。&lt;/p&gt;
+
+&lt;p&gt;对于需求变更，传统的开发方式已经很难应对这种情况了。而敏捷开发就是应对这种需求变更最好的方式，以最小的核心需求进行开发，同时每一次迭代之后，都会以最新的需求作为目标，因此每一次迭代都会与客户的目标更接近，最终会完美的交付客户需求的系统。这就是敏捷开发的魅力所在，以最小的代价，完成最伟大的作品。&lt;/p&gt;
+
+</description>
+        <pubDate>Mon, 09 Sep 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2019/09/09/%E9%A1%B9%E7%9B%AE%E7%AE%A1%E7%90%86-Scrum%E6%95%8F%E6%8D%B7%E5%BC%80%E5%8F%91/</link>
+        <guid isPermaLink="true">http://localhost:4000/2019/09/09/%E9%A1%B9%E7%9B%AE%E7%AE%A1%E7%90%86-Scrum%E6%95%8F%E6%8D%B7%E5%BC%80%E5%8F%91/</guid>
+        
+        <category>项目管理</category>
+        
+        <category>敏捷开发</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>机器学习-第三章:线性模型</title>
+        <description>&lt;h3 id=&quot;一知识点归纳&quot;&gt;〖一、知识点归纳〗&lt;/h3&gt;
+
+&lt;h4 id=&quot;一基本形式&quot;&gt;一、基本形式&lt;/h4&gt;
+
+&lt;h5 id=&quot;1先回顾一下各个符号对应的概念&quot;&gt;1、先回顾一下各个符号对应的概念&lt;/h5&gt;
+
+&lt;p&gt;&lt;img src=&quot;/img/机器学习-第三章:线性模型/符号概念.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;h5 id=&quot;2线性模型&quot;&gt;2、线性模型&lt;/h5&gt;
+&lt;p&gt;来明确一下线性模型的概念。&lt;/p&gt;
+
+&lt;p&gt;线性模型的目的：试图学得一个〖通过属性的线性组合来进行预测〗的【函数】。&lt;/p&gt;
+
+&lt;p&gt;线性模型：一个函数。&lt;/p&gt;
+
+&lt;p&gt;线性模型的特征：通过属性的线性组合来进行预测。&lt;/p&gt;
+
+&lt;p&gt;即： &lt;img src=&quot;/img/机器学习-第三章:线性模型/线性模型公式.svg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;向量形式为： &lt;img src=&quot;/img/机器学习-第三章:线性模型/线性模型向量表示.svg&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;其本质类似于是给各个属性分配一个权值，直观的反应了各个属性在模型中的重要性，因此线性模型有很好的可解释性。&lt;/p&gt;
+
+&lt;p&gt;例如： &lt;img src=&quot;/img/机器学习-第三章:线性模型/线性模型公式西瓜例子.svg&quot; alt=&quot;&quot; /&gt;，则意味着，判断一个瓜是否是好瓜时，根蒂最重要，敲声其次，色泽最次。&lt;/p&gt;
+
+&lt;h5 id=&quot;3总览&quot;&gt;3、总览&lt;/h5&gt;
+&lt;p&gt;本章讨论重点：&lt;/p&gt;
+
+&lt;p&gt;回归任务：线性回归&lt;/p&gt;
+
+&lt;p&gt;分类任务：对数几率回归、线性判别分析、多分类学习&lt;/p&gt;
+
+&lt;h4 id=&quot;二线性回归&quot;&gt;二、线性回归&lt;/h4&gt;
+
+&lt;h5 id=&quot;1什么是线性回归&quot;&gt;1、什么是线性回归&lt;/h5&gt;
+
+&lt;p&gt;给定数据集 &lt;img src=&quot;/img/机器学习-第三章:线性模型/数据集.svg&quot; alt=&quot;&quot; /&gt; ，其中 &lt;img src=&quot;/img/xi.svg&quot; alt=&quot;&quot; /&gt; .&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;线性回归的目的&lt;/strong&gt;：试图学得一个【线性模型】以尽可能准确地〖预测实值输出标记〗。&lt;/p&gt;
+
+&lt;p&gt;线性回归：线性模型。&lt;/p&gt;
+
+&lt;p&gt;线性模型的作用：预测实值输出标记。&lt;/p&gt;
+
+&lt;p&gt;线性模型的目的：试图学得一个〖通过属性的线性组合来进行预测〗的【函数】。&lt;/p&gt;
+
+&lt;p&gt;函数的特征：通过属性的线性组合来进行预测。&lt;/p&gt;
+
+&lt;p&gt;线性模型：一个函数。&lt;/p&gt;
+
+&lt;p&gt;总的来讲，线性回归是一个函数，通过属性的线性组合进行预测，尽可能准确预测实值输出标记。&lt;/p&gt;
+
+&lt;p&gt;回归分析中，只包括一个自变量和一个因变量，且二者的关系可用一条直线近似表示，这种回归分析称为一元线性回归分析。如果回归分析中包括两个或两个以上的自变量，且因变量和自变量之间是线性关系，则称为多元线性回归分析。&lt;/p&gt;
+
+&lt;h5 id=&quot;2最小二乘法&quot;&gt;2、最小二乘法&lt;/h5&gt;
+&lt;p&gt;举例子之前，先来介绍一下什么是最小二乘法。&lt;/p&gt;
+
+&lt;p&gt;我们很难通过字面意思理解最小二乘法的“最小”是什么，“二乘”又是什么。&lt;/p&gt;
+
+&lt;p&gt;那么先说一下最小二乘法想干什么吧。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;最小二乘法的目的&lt;/strong&gt;：（在线性回归中）试图找到一条直线，使所有样本到直线上的【欧氏距离】之和最小。&lt;/p&gt;
+
+&lt;p&gt;&lt;strong&gt;欧氏距离&lt;/strong&gt;：在m维空间中〖两个点之间的真实距离〗或〖向量的自然长度（该点到原点的距离）〗&lt;/p&gt;
+
+&lt;p&gt;所谓“二乘”，就是用平方来度量观测点与估计点的远近（在古汉语中“平方”称为“二乘”）。&lt;/p&gt;
+
+&lt;p&gt;而这“最小”，是指参数的估计值要保证各个观测点与估计点的距离平方和达到最小。&lt;/p&gt;
+
+&lt;p&gt;再来进一步解释最小二乘法。&lt;/p&gt;
+
+&lt;p&gt;最小二乘法（又称最小平方法）是一种数学优化技术。它通过最小化误差的平方和寻找数据的最佳函数匹配。利用最小二乘法可以简便地求得未知的数据，并使得这些求得的数据与实际数据之间误差的平方和为最小。&lt;/p&gt;
+
+&lt;p&gt;那么线性回归中什么是定义里的误差的平方和？&lt;/p&gt;
+
+&lt;p&gt;如果说误差就是预测点 &lt;img src=&quot;img/f(x).svg&quot; alt=&quot;&quot; /&gt; 到标记点 &lt;img src=&quot;img/y.svg&quot; alt=&quot;&quot; /&gt; 的距离，&lt;/p&gt;
+
+&lt;p&gt;那么均方误差 &lt;img src=&quot;/img/均方误差.svg&quot; alt=&quot;&quot; /&gt; 则可以体现误差的平方和&lt;/p&gt;
+
+&lt;p&gt;这就意味着，线性回归需要让均方误差最小化。&lt;/p&gt;
+
+&lt;h5 id=&quot;3-属性数目为1的简单例子一元线性回归&quot;&gt;3 属性数目为1的简单例子（一元线性回归）&lt;/h5&gt;
+
+&lt;p&gt;当属性数目不为1时，计算成为了向量计算，所以本着由易到难的原则，先将属性个数 d设为1。即： &lt;img src=&quot;https://www.zhihu.com/equation?tex=%5Cboldsymbol+x_i%3D%28x_%7Bi1%7D%3Bx_%7Bi2%7D%3B...%3Bx_%7Bid%7D%29&quot; alt=&quot;&quot; /&gt;  ，当 d=1 时，&lt;img src=&quot;https://www.zhihu.com/equation?tex=%5Cboldsymbol+x_i%3D%28x_%7Bi%7D%29&quot; alt=&quot;&quot; /&gt; ，此时 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 就可以代表 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 。&lt;/p&gt;
+
+&lt;p&gt;数据集 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 变成了： &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;在这个数据集条件下，线性回归试图学得： &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; ，使得 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 。其中 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 是参数， &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 相当于是截距项。&lt;/p&gt;
+
+&lt;p&gt;那么也就是说，确定了 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 和 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; ，这个线性回归模型就成了。&lt;/p&gt;
+
+&lt;p&gt;如何确定？&lt;/p&gt;
+
+&lt;p&gt;就要利用最小二乘法了。&lt;/p&gt;
+
+&lt;p&gt;有那么一组 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 和 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 的解 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; ，当取到它们时，&lt;/p&gt;
+
+&lt;p&gt;均方误差 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 是最小，误差的平方和 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 也就达到了最小，也就得到了那么一条“使所有样本到直线上的欧氏距离之和最小”的直线。&lt;/p&gt;
+
+&lt;p&gt;用公式表示一下： &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;令 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;公式写的挺好，可如何让均方误差达到最小？&lt;/p&gt;
+
+&lt;p&gt;根据函数知识可知，一般 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 这样的函数，都是凹函数（书上写这是凸函数，早期数学翻译的问题，无关紧要），其最小值点一般在函数的极小值点处，也就是偏导数为0的点。&lt;/p&gt;
+
+&lt;p&gt;所以，我们可以将 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 分别对 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 和 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 求偏导，并让偏导等于0，求出的解就是那组可以让 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 最小的解，亦即线性回归模型中的参数与误差。&lt;/p&gt;
+
+&lt;p&gt;其中 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 为 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 的均值。&lt;/p&gt;
+
+&lt;h5 id=&quot;4属性数目为d的复杂例子多元线性回归&quot;&gt;4、属性数目为d的复杂例子（多元线性回归）&lt;/h5&gt;
+&lt;p&gt;现实中我们几乎碰不见属性值个数为1的例子，在这些情况下，示例还是 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; ，数据集还是 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;这就是残酷的现实。&lt;/p&gt;
+
+&lt;p&gt;在这个数据集条件下，线性回归试图学得： &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; ，使得 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 。其中 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 算是参数， &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 相当于是误差。&lt;/p&gt;
+
+&lt;p&gt;类似的，可以用最小二乘法对其进行估计，既然反正也是求向量，不如把两个向量合成一个，于是， &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 。相应的，把数据集 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 表示为一个 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 大小的矩阵 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; ，其中每行对应一个示例，前 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 个元素表示属性值，后一位恒置为1。&lt;/p&gt;
+
+&lt;h5 id=&quot;5线性模型的丰富变化&quot;&gt;5、线性模型的丰富变化&lt;/h5&gt;
+
+&lt;p&gt;我们可以将线性模型的预测值逼近真实标记&lt;img src=&quot;&quot; alt=&quot;&quot; /&gt;，为： &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;也可以将线性模型的预测值逼近真实标记 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 的衍生物，如对数： &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;更一般地，考虑单调可微函数 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; ，可以得到更多的真实标记 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 的衍生物，令 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; ，即 &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; ，这样得到的模型称作广义线性模型， &lt;img src=&quot;&quot; alt=&quot;&quot; /&gt; 为“联系函数”。&lt;/p&gt;
+</description>
+        <pubDate>Mon, 09 Sep 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2019/09/09/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0-%E7%AC%AC%E4%B8%89%E7%AB%A0-%E7%BA%BF%E6%80%A7%E6%A8%A1%E5%9E%8B/</link>
+        <guid isPermaLink="true">http://localhost:4000/2019/09/09/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0-%E7%AC%AC%E4%B8%89%E7%AB%A0-%E7%BA%BF%E6%80%A7%E6%A8%A1%E5%9E%8B/</guid>
+        
+        <category>机器学习</category>
+        
+        
+      </item>
+    
+      <item>
+        <title>Hive学习之路 （四）Hive的连接3种连接方式</title>
+        <description>&lt;h4 id=&quot;一cli连接&quot;&gt;一、CLI连接&lt;/h4&gt;
+
+&lt;p&gt;进入到 bin 目录下，直接输入命令：&lt;/p&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;[hadoop@hadoop3 ~]$ hive&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;blockquote&gt;
+  &lt;p&gt;hive&amp;gt; show databases;&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;启动成功的话如上图所示，接下来便可以做 hive 相关操作&lt;/p&gt;
+
+&lt;p&gt;补充：&lt;/p&gt;
+
+&lt;p&gt;　　1、上面的 hive 命令相当于在启动的时候执行：hive –service cli&lt;/p&gt;
+
+&lt;p&gt;　　2、使用 hive –help，可以查看 hive 命令可以启动那些服务&lt;/p&gt;
+
+&lt;p&gt;　　3、通过 hive –service serviceName –help 可以查看某个具体命令的使用方式&lt;/p&gt;
+
+&lt;h4 id=&quot;二hiveserver2beeline&quot;&gt;二、HiveServer2/beeline&lt;/h4&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;在现在使用的最新的 hive-2.3.3 版本中：都需要对 hadoop 集群做如下改变，否则无法使用
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h5 id=&quot;1修改-hadoop-集群的-hdfs-sitexml-配置文件&quot;&gt;1、修改 hadoop 集群的 hdfs-site.xml 配置文件&lt;/h5&gt;
+&lt;p&gt;加入一条配置信息，表示启用 webhdfs&lt;/p&gt;
+
+&lt;property&gt;
+ &lt;name&gt;dfs.webhdfs.enabled&lt;/name&gt;
+ &lt;value&gt;true&lt;/value&gt;
+&lt;/property&gt;
+
+&lt;h5 id=&quot;2修改-hadoop-集群的-core-sitexml-配置文件&quot;&gt;2、修改 hadoop 集群的 core-site.xml 配置文件&lt;/h5&gt;
+
+&lt;p&gt;加入两条配置信息：表示设置 hadoop 的代理用户&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&amp;lt;property&amp;gt;
+ &amp;lt;name&amp;gt;hadoop.proxyuser.hadoop.hosts&amp;lt;/name&amp;gt;
+ &amp;lt;value&amp;gt;*&amp;lt;/value&amp;gt;
+&amp;lt;/property&amp;gt;
+&amp;lt;property&amp;gt;
+ &amp;lt;name&amp;gt;hadoop.proxyuser.hadoop.groups&amp;lt;/name&amp;gt;
+ &amp;lt;value&amp;gt;*&amp;lt;/value&amp;gt;
+&amp;lt;/property&amp;gt;	 	 配置解析：
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;hadoop.proxyuser.hadoop.hosts 配置成*的意义，表示任意节点使用 hadoop 集群的代理用户 hadoop 都能访问 hdfs 集群，hadoop.proxyuser.hadoop.groups 表示代理用户的组所属&lt;/p&gt;
+
+&lt;p&gt;以上操作做好了之后（最好重启一下HDFS集群），请继续做如下两步：&lt;/p&gt;
+
+</description>
+        <pubDate>Mon, 09 Sep 2019 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/2019/09/09/Hive%E5%AD%A6%E4%B9%A0%E4%B9%8B%E8%B7%AF-%E5%9B%9B-Hive%E7%9A%84%E8%BF%9E%E6%8E%A53%E7%A7%8D%E8%BF%9E%E6%8E%A5%E6%96%B9%E5%BC%8F/</link>
+        <guid isPermaLink="true">http://localhost:4000/2019/09/09/Hive%E5%AD%A6%E4%B9%A0%E4%B9%8B%E8%B7%AF-%E5%9B%9B-Hive%E7%9A%84%E8%BF%9E%E6%8E%A53%E7%A7%8D%E8%BF%9E%E6%8E%A5%E6%96%B9%E5%BC%8F/</guid>
+        
+        <category>大数据</category>
+        
+        <category>Hive</category>
         
         
       </item>
